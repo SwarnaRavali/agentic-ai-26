@@ -1,0 +1,3 @@
+# Direct runtime dependencies; transitive dependencies are resolved by pip.
+crewai==1.15.28
+pydantic==2.12.5
