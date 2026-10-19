@@ -10,7 +10,7 @@ class Handler(BaseHTTPRequestHandler):
     def send(self,data,status=200,ctype='application/json'):
         raw=data.encode() if isinstance(data,str) else json.dumps(data,ensure_ascii=False).encode();self.send_response(status);self.send_header('Content-Type',ctype);self.send_header('Content-Length',str(len(raw)));self.end_headers();self.wfile.write(raw)
     def do_GET(self):
-        if self.path=='/':return self.send((ROOT/'crewai_hands_on/builder.html').read_text(),ctype='text/html; charset=utf-8')
+        if self.path=='/':return self.send((ROOT/'crewai_lab/builder.html').read_text(),ctype='text/html; charset=utf-8')
         if self.path=='/api/health':return self.send({'status':'ok','framework':'CrewAI','provider':'codex_cli','mode':'LIVE','evidence_mode':'live_browser','sources':['Amazon','Flipkart','Myntra'],'side_effect_tools':[]})
         if self.path.startswith('/api/job/'):
             j=JOBS.get(self.path.split('/')[-1]);return self.send(j or {'error':'Unknown run'},200 if j else 404)

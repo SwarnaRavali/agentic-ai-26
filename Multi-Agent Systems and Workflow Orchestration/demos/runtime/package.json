@@ -1,5 +1,10 @@
 {
-	"dependencies": {
-		"n8n": "2.43.7"
-	}
+  "name": "iisc-workshop-n8n",
+  "private": true,
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "dependencies": {
+    "n8n": "2.43.7"
+  }
 }

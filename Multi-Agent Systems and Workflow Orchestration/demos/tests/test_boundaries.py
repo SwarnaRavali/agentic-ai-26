@@ -3,7 +3,7 @@ import unittest,tempfile,json,sys,copy
 from pathlib import Path
 from datetime import datetime,timedelta,timezone
 from unittest.mock import patch
-sys.path.insert(0,str(Path(__file__).resolve().parent))
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from marketplace_service import service as svc
 class Boundaries(unittest.TestCase):
     def setUp(self):

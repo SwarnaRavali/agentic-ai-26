@@ -8,7 +8,7 @@ NODE_BIN=os.environ.get('NODE_BIN') or shutil.which('node')
 if not NODE_BIN:raise SystemExit('Install Node.js and add node to PATH, or set NODE_BIN.')
 NODE=Path(NODE_BIN).resolve().parent
 PIDFILE=ROOT/'service-pids.json'
-SERVICES=[('marketplace',8002,[str(PY),str(ROOT/'marketplace_service/service.py')]),('crewai',8765,[str(PY),str(ROOT/'crewai_hands_on/server.py')]),('n8n',5678,[str(NODE/'node'),str(ROOT/'runtime/node_modules/n8n/bin/n8n'),'start'])]
+SERVICES=[('marketplace',8002,[str(PY),str(ROOT/'marketplace_service/service.py')]),('crewai',8765,[str(PY),str(ROOT/'crewai_lab/server.py')]),('n8n',5678,[str(NODE/'node'),str(ROOT/'runtime/node_modules/n8n/bin/n8n'),'start'])]
 def listening(port):
     try:
         with socket.create_connection(('127.0.0.1',port),timeout=.4):return True
