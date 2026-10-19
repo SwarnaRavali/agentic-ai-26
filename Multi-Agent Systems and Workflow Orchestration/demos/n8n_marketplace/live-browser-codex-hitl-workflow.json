@@ -1,0 +1,385 @@
+{
+  "id": "IISCLiveBrowserCodex",
+  "name": "LIVE — Browser search + Codex + human approval",
+  "nodes": [
+    {
+      "id": "0bd09935-4d0d-57d0-a803-63142ad5ca59",
+      "name": "Shopping Request",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "formTitle": "Live marketplace research agent",
+        "formDescription": "A visible browser gathers public evidence. Codex ranks the observations. You approve only a simulated action.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Shopping request",
+              "fieldType": "textarea",
+              "defaultValue": "Find black running shoes under ₹1,000. Ask me before ordering.",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {
+          "path": "live-browser-codex-shopping",
+          "buttonLabel": "Search live marketplaces"
+        },
+        "responseMode": "onReceived"
+      },
+      "webhookId": "live-browser-codex-shopping"
+    },
+    {
+      "id": "48ae4d8c-303f-5d3f-92b9-53ff5996daf5",
+      "name": "Browser Agent — Search Marketplaces",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        260,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:8002/search",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {request: $json['Shopping request']} }}",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "2f83ce52-33d6-5755-a5de-365bb8733611",
+      "name": "Codex Agent — Normalize & Rank",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        520,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:8002/recommend-live",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {request: $('Shopping Request').first().json['Shopping request'], search_results: $json} }}",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "1248fb40-4bac-53c8-8423-45e0d0225eab",
+      "name": "Validate Live Evidence",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        780,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const data=$input.first().json; const errors=[];\nlet req=$('Shopping Request').first().json['Shopping request'];\nconst m=String(req).replaceAll(',','').match(/(?:under|below|budget|up to)\\s*(?:₹|rs\\.?|inr)?\\s*(\\d+(?:\\.\\d+)?)\\s*(k)?/i);\nconst budget=m?Number(m[1])*(m[2]?1000:1):NaN;\nif(!Number.isFinite(budget)||budget<=0)errors.push('Missing numeric budget');\nif(data.error)errors.push('Adapter error');\nif(data.provider!=='codex_cli')errors.push('Unexpected provider');\nif(data.evidence_mode!=='live_browser')errors.push('Live evidence required');\nif(!data.deterministic_validation?.passed)errors.push('Adapter validation did not pass');\nif(data.parsed_request?.budget_inr!==budget)errors.push('Budget changed during interpretation');\nif(data.parsed_request?.approval_required!==true)errors.push('Approval invariant missing');\nif(typeof data.confidence!=='number'||data.confidence<0||data.confidence>1)errors.push('Invalid confidence');\nif(data.status==='READY_FOR_APPROVAL'){\n const o=data.selected_offer;\n if(!o)errors.push('Missing candidate');else{\n  const match=String(o.source_url||'').match(/^https:\\/\\/([^/?#]+)/i);let host=match?match[1].toLowerCase():'';if(!host)errors.push('Invalid URL');\n  const domain={Amazon:'amazon.in',Flipkart:'flipkart.com',Myntra:'myntra.com'}[o.marketplace];\n  if(!domain||!(host===domain||host.endsWith('.'+domain)))errors.push('Source host mismatch');\n  if(!(o.observed_price_inr>0&&o.observed_price_inr<budget))errors.push('Observed price fails budget');\n  const age=Date.now()-Date.parse(o.observed_at);if(!Number.isFinite(age)||age>900000||age< -60000)errors.push('Evidence expired');\n  const candidates=$('Browser Agent — Search Marketplaces').first().json.candidates||[];\n  if(!candidates.some(c=>c.offer_id===o.offer_id&&c.source_url===o.source_url&&c.observed_price_inr===o.observed_price_inr))errors.push('Candidate not in collected evidence');\n }\n}\nreturn [{json:{...data,lane:errors.length===0&&data.status==='READY_FOR_APPROVAL'?'approval':'no_match',validation_errors:errors,validation_checked_at:new Date().toISOString()}}];"
+      }
+    },
+    {
+      "id": "2ca0d28e-4fbf-54ad-97f9-aed668817543",
+      "name": "Route Recommendation",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        1040,
+        0
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "56a2d895-cc90-4fa3-8853-83b38e1b72d6",
+                    "leftValue": "={{ $json.lane }}",
+                    "rightValue": "approval",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "approval"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      }
+    },
+    {
+      "id": "670083ef-6bd3-5fdd-93d2-1ddd4fda328a",
+      "name": "Human Approval",
+      "type": "n8n-nodes-base.form",
+      "typeVersion": 2.5,
+      "position": [
+        1300,
+        -160
+      ],
+      "parameters": {
+        "operation": "page",
+        "defineForm": "json",
+        "jsonOutput": "[{\"fieldLabel\": \"Your decision\", \"fieldType\": \"radio\", \"fieldOptions\": {\"values\": [{\"option\": \"Approve simulated order\"}, {\"option\": \"Cancel\"}]}, \"requiredField\": true}]",
+        "options": {
+          "formTitle": "Human approval gate",
+          "formDescription": "={{ (() => { const p=$('Validate Live Evidence').first().json; const o=p.selected_offer; const esc=s=>String(s).replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',\"'\":'&#39;'}[c])); return '<h3>Review live browser evidence</h3><p><strong>'+esc(o.product_name)+'</strong> on '+esc(o.marketplace)+'</p><p>Observed item price: ₹'+o.observed_price_inr+' · Budget: ₹'+p.parsed_request.budget_inr+'</p><p><a href=\"'+esc(o.source_url)+'\" target=\"_blank\">Open source evidence</a></p><p>Observed: '+esc(o.observed_at)+'</p><p>Evidence: '+esc(o.evidence_mode)+'</p><p>Unverified: '+esc(o.unverified_fields.join(', '))+'</p><strong>Approval authorizes only a simulated action. No marketplace order or payment occurs. Checkout total is unverified.</strong>'; })() }}",
+          "buttonLabel": "Continue"
+        },
+        "limitWaitTime": true,
+        "limitType": "afterTimeInterval",
+        "resumeAmount": 15,
+        "resumeUnit": "minutes"
+      }
+    },
+    {
+      "id": "040b7587-b979-5cc2-9422-dd041393b388",
+      "name": "Route Human Decision",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        1560,
+        -160
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "dbccda60-6a28-4ea1-b4a6-044b35d4987f",
+                    "leftValue": "={{ $json['Your decision'] || 'Cancel' }}",
+                    "rightValue": "Approve simulated order",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Approve simulated order"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      }
+    },
+    {
+      "id": "9fceaab9-b55e-5343-a8bb-b8da1749a686",
+      "name": "Create Simulated Order",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1820,
+        -160
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:8001/order-live",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {approved: true, proposal_id: $('Validate Live Evidence').first().json.proposal_id, selected_offer: $('Validate Live Evidence').first().json.selected_offer} }}",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "6fad5f56-6464-5b11-bf36-31a81f3caa42",
+      "name": "Order Confirmation",
+      "type": "n8n-nodes-base.form",
+      "typeVersion": 2.5,
+      "position": [
+        2080,
+        -160
+      ],
+      "parameters": {
+        "operation": "completion",
+        "respondWith": "text",
+        "completionTitle": "={{ $json.status === 'SIMULATED' ? 'Simulated action completed' : 'Action stopped' }}",
+        "completionMessage": "={{ $json.status === 'SIMULATED' ? 'Reference: '+$json.order_id+' · Payment taken: false · Marketplace contacted: false. Freshness and proposal identity were rechecked.' : 'No simulated action completed. '+JSON.stringify($json.error || $json) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "49ef4205-f19b-51a3-89d9-6dde347ada67",
+      "name": "No Match",
+      "type": "n8n-nodes-base.form",
+      "typeVersion": 2.5,
+      "position": [
+        1300,
+        180
+      ],
+      "parameters": {
+        "operation": "completion",
+        "respondWith": "text",
+        "completionTitle": "No eligible recommendation",
+        "completionMessage": "={{ 'No action performed. '+(($('Validate Live Evidence').first().json.validation_errors || []).join('. '))+' '+($('Validate Live Evidence').first().json.reasons || []).join(' ') }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "94964c74-21d1-5099-bba5-f3e97a83f3cc",
+      "name": "Cancelled",
+      "type": "n8n-nodes-base.form",
+      "typeVersion": 2.5,
+      "position": [
+        1820,
+        100
+      ],
+      "parameters": {
+        "operation": "completion",
+        "respondWith": "text",
+        "completionTitle": "Cancelled or timed out",
+        "completionMessage": "The simulated action did not run. No payment or marketplace order occurred.",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Shopping Request": {
+      "main": [
+        [
+          {
+            "node": "Browser Agent — Search Marketplaces",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Browser Agent — Search Marketplaces": {
+      "main": [
+        [
+          {
+            "node": "Codex Agent — Normalize & Rank",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Codex Agent — Normalize & Rank": {
+      "main": [
+        [
+          {
+            "node": "Validate Live Evidence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Live Evidence": {
+      "main": [
+        [
+          {
+            "node": "Route Recommendation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Recommendation": {
+      "main": [
+        [
+          {
+            "node": "Human Approval",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Match",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Human Approval": {
+      "main": [
+        [
+          {
+            "node": "Route Human Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Human Decision": {
+      "main": [
+        [
+          {
+            "node": "Create Simulated Order",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Cancelled",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Simulated Order": {
+      "main": [
+        [
+          {
+            "node": "Order Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveExecutionProgress": true,
+    "executionTimeout": 1200,
+    "timezone": "Asia/Kolkata"
+  },
+  "versionId": "f0c292bb-9afc-4af0-a923-3235d44693b1"
+}
