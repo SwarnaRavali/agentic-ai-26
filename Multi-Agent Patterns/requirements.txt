@@ -1,0 +1,9 @@
+langgraph>=1.0,<2
+langgraph-checkpoint-sqlite>=2.0   # durable runs: crash, resume, rewind
+rich>=13
+python-dotenv>=1.0
+# Tests: python -m pytest -q
+pytest>=8
+# Optional, only for real-model mode (LAB_LLM=openai or anthropic):
+# openai>=1.40
+# anthropic>=0.40

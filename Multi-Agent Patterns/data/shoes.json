@@ -1,0 +1,26 @@
+{
+  "goal": {"query": "Black running shoes, size 9, under ₹1,000", "color": "black", "type": "running", "size": 9, "max_price": 1000},
+
+  "listings": [
+    {"id": "a1", "store": "demo-store-a", "name": "Sparx black running shoe",        "price": 1199, "type": "running", "color": "black", "sizes": [7, 8, 9, 10], "seller": "Sparx official"},
+    {"id": "a2", "store": "demo-store-a", "name": "Black canvas slip-on",            "price": 499,  "type": "casual",  "color": "black", "sizes": [6, 7],        "seller": "demo-store-a"},
+    {"id": "b1", "store": "demo-store-b", "name": "Campus black runner",             "price": 1349, "type": "running", "color": "black", "sizes": [8, 9, 10],    "seller": "Campus official"},
+    {"id": "b2", "store": "demo-store-b", "name": "Campus North black running shoe", "price": 949,  "type": "running", "color": "black", "sizes": [6, 7, 8],     "seller": "Campus official"},
+    {"id": "b3", "store": "demo-store-b", "name": "Campus grey running shoe",        "price": 749,  "type": "running", "color": "grey",  "sizes": [8, 9],        "seller": "Campus official"},
+    {"id": "c1", "store": "demo-store-c", "name": "Asian black sports shoe",         "price": 1099, "type": "running", "color": "black", "sizes": [9, 10],       "seller": "Asian official"},
+    {"id": "c2", "store": "demo-store-c", "name": "Asian Wonder black running shoe", "price": 979,  "type": "running", "color": "black", "sizes": [8, 9, 10],    "seller": "Asian official"},
+    {"id": "c3", "store": "demo-store-c", "name": "Sparx black running shoe",        "price": 699,  "type": "running", "color": "black", "sizes": [8, 9],        "seller": "ShoeHub Outlet"}
+  ],
+
+  "sellers": {
+    "Sparx official":  {"verified": true,  "note": "brand store"},
+    "Campus official": {"verified": true,  "note": "brand store"},
+    "Asian official":  {"verified": true,  "note": "brand store"},
+    "demo-store-a":    {"verified": true,  "note": "the store itself"},
+    "ShoeHub Outlet":  {"verified": false, "note": "reseller, 3 months old, 38% of reviews say the shoes are fake"}
+  },
+
+  "event": {"id": "a1", "old_price": 1199, "new_price": 849},
+
+  "guardrails_lab": ["a1", "b1", "c1"]
+}

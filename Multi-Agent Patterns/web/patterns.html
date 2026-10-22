@@ -1,0 +1,777 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Four Patterns, One Query</title>
+<style>
+/* Part 2: the same shoe query through four coordination patterns. Same look as the guardrails lab (lab.html). */
+:root {
+  --bg: #f4f6f8; --panel: #ffffff; --ink: #1b1f24; --muted: #5f6b7a; --line: #d6dce4; --soft: #eef1f5;
+  --accent: #2563eb; --ok: #15803d; --warn: #b45309; --bad: #dc2626;
+  --watcher: #a21caf; --scout: #ea580c; --evaluator: #0e7490; --deal: #2563eb; --budget: #a16207;
+  --checkout: #15803d; --guard: #dc2626; --human: #334155;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1116; --panel: #161a21; --ink: #e6e9ee; --muted: #94a0b1; --line: #2a313b; --soft: #1e242c;
+    --accent: #60a5fa; --ok: #4ade80; --warn: #fbbf24; --bad: #f87171;
+    --watcher: #e879f9; --scout: #fb923c; --evaluator: #22d3ee; --deal: #60a5fa; --budget: #facc15;
+    --checkout: #4ade80; --guard: #f87171; --human: #cbd5e1;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1116; --panel: #161a21; --ink: #e6e9ee; --muted: #94a0b1; --line: #2a313b; --soft: #1e242c;
+  --accent: #60a5fa; --ok: #4ade80; --warn: #fbbf24; --bad: #f87171;
+  --watcher: #e879f9; --scout: #fb923c; --evaluator: #22d3ee; --deal: #60a5fa; --budget: #facc15;
+  --checkout: #4ade80; --guard: #f87171; --human: #cbd5e1;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+       font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+button, select { font: inherit; color: inherit; }
+.wrap { max-width: 1480px; margin: 0 auto; padding: 12px 16px 32px; }
+body.embed header h1, body.embed header .sub, body.embed #theme { display: none; }   /* the talk has its own theme button */
+body.embed { overflow: hidden; }   /* the talk scrolls, not this frame */
+
+header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+header h1 { font-size: 18px; margin: 0; letter-spacing: -0.01em; }
+header .sub { color: var(--muted); }
+header .spacer { flex: 1; }
+.badge { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border-radius: 999px;
+         border: 1px solid var(--line); background: var(--panel); font-size: 12px; color: var(--muted); }
+.badge.live { color: var(--ok); border-color: var(--ok); }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.dot.on { background: var(--ok); }
+
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; min-width: 0; }
+.panel h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 0 0 8px; font-weight: 600; }
+
+.controls { display: grid; gap: 10px; }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.row .label { font-size: 12px; color: var(--muted); width: 70px; flex: none; }
+.query { font: 600 15px/1.3 system-ui, sans-serif; color: inherit; flex: 1 1 320px; min-width: 0; max-width: 520px;
+         border: 1px solid var(--line); background: var(--soft); border-radius: 8px; padding: 5px 8px; }
+.query:disabled { opacity: 0.7; }
+.btn { border: 1px solid var(--line); background: var(--soft); border-radius: 8px; padding: 5px 12px; cursor: pointer; }
+.btn:hover:not(:disabled) { border-color: var(--accent); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.danger { color: var(--bad); }
+.btn.pulse { animation: glow 1.2s ease-in-out infinite; border-color: var(--accent); }
+.lvl { text-align: left; display: flex; flex-direction: column; padding: 6px 12px; }
+.lvl b { font-size: 13px; }
+.lvl small { color: var(--muted); font-size: 11.5px; }
+.lvl.on { outline: 2px solid var(--accent); outline-offset: 1px; }
+.seg { display: inline-flex; gap: 0; }
+.seg .btn { border-radius: 0; } .seg .btn:first-child { border-radius: 8px 0 0 8px; } .seg .btn:last-child { border-radius: 0 8px 8px 0; }
+.seg .btn.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.fwtag { display: inline-block; font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 6px; margin-right: 6px; vertical-align: 1px;
+         border: 1px solid var(--c); color: var(--c); }
+.fw-langgraph { --c: var(--deal); } .fw-crewai { --c: var(--scout); }
+a.btn { text-decoration: none; display: inline-block; }
+.live-only[hidden] { display: none !important; }
+.item a.name { color: inherit; text-decoration: none; } .item a.name:hover { text-decoration: underline; }
+.item .ev { font-weight: 600; } .item .ev.ok { color: var(--ok); } .item .ev.no { color: var(--warn); }
+.msg.llm .say { font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
+.msg.llm.live .act { color: var(--ok); }
+select { border: 1px solid var(--line); background: var(--soft); border-radius: 8px; padding: 5px 8px; }
+
+.story { margin: 12px 0; display: grid; gap: 8px; }
+.caption { font-size: 15px; }
+.banner { padding: 10px 14px; border-radius: 10px; font-weight: 600; border: 1px solid; }
+.banner.ok { color: var(--ok); border-color: var(--ok); background: color-mix(in srgb, var(--ok) 10%, var(--panel)); }
+.banner.warn { color: var(--warn); border-color: var(--warn); background: color-mix(in srgb, var(--warn) 10%, var(--panel)); }
+.banner.bad { color: var(--bad); border-color: var(--bad); background: color-mix(in srgb, var(--bad) 10%, var(--panel)); }
+
+.main { display: grid; grid-template-columns: 290px minmax(0, 1fr) 360px; gap: 12px; }
+@media (max-width: 1150px) { .main { grid-template-columns: 1fr; } }
+
+/* the world: store listings */
+.store { margin-top: 8px; }
+.store > b { font-size: 12px; color: var(--muted); font-family: var(--mono); }
+.item { display: grid; grid-template-columns: 1fr auto; gap: 0 8px; padding: 6px 8px; margin-top: 4px; border-radius: 8px;
+        border: 1px solid transparent; transition: all 0.3s; }
+.item .name { font-weight: 600; font-size: 13px; }
+.item .meta { color: var(--muted); font-size: 11.5px; grid-column: 1 / -1; }
+.item .price { font-family: var(--mono); font-size: 14px; text-align: right; }
+.item .old { text-decoration: line-through; color: var(--muted); font-size: 11px; margin-right: 4px; }
+.item .tag { grid-column: 1 / -1; font-size: 11.5px; font-weight: 600; }
+.item.checked { border-color: var(--line); background: var(--soft); }
+.item.kept { border-color: var(--ok); }
+.item.kept .tag { color: var(--ok); }
+.item.out { opacity: 0.45; }
+.item.out .name { text-decoration: line-through; }
+.item.pick { border-color: var(--accent); border-width: 2px; background: color-mix(in srgb, var(--accent) 10%, var(--panel)); }
+.item.pick .tag { color: var(--accent); }
+.item.rejected { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 10%, var(--panel)); }
+.item.rejected .tag { color: var(--bad); }
+.item.bought { border-color: var(--ok); border-width: 2px; background: color-mix(in srgb, var(--ok) 14%, var(--panel)); }
+.item.bought .tag { color: var(--ok); }
+.item.flash { animation: flash 1.6s ease-out; }
+
+/* the graph */
+.graph-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; margin-bottom: 4px; }
+.step { font-size: 13px; color: var(--ink); font-weight: 600; }
+svg.graph { width: 100%; height: auto; display: block; }
+.edge { fill: none; stroke: var(--line); stroke-width: 2; transition: stroke 0.3s; }
+.edge.on { stroke: var(--accent); }
+.edge.hot { stroke: var(--bad); stroke-width: 3; }
+.edge.ok { stroke: var(--ok); }
+.node rect { fill: var(--panel); stroke: var(--line); stroke-width: 1.5; transition: all 0.3s; }
+.node .t { font-weight: 600; font-size: 17px; fill: var(--ink); text-anchor: middle; }
+.node .s { font-size: 13px; fill: var(--muted); text-anchor: middle; }
+.node.active rect { stroke: var(--c); stroke-width: 3; animation: pulse 1s ease-in-out infinite; }
+.node.done rect { stroke: var(--c); stroke-width: 2; fill: color-mix(in srgb, var(--c) 13%, var(--panel)); }
+.node.waiting rect { stroke: var(--warn); stroke-width: 3; animation: pulse 0.8s ease-in-out infinite; }
+.node.bad rect { stroke: var(--bad); stroke-width: 3; fill: color-mix(in srgb, var(--bad) 14%, var(--panel)); }
+.graph-foot { color: var(--muted); font-size: 13px; min-height: 20px; }
+.graph-foot.bad { color: var(--bad); font-weight: 600; } .graph-foot.warn { color: var(--warn); font-weight: 600; }
+
+.msglist { overflow-y: auto; max-height: 520px; display: flex; flex-direction: column; gap: 6px; padding-right: 4px; }
+.msg { display: grid; grid-template-columns: 86px 1fr; gap: 2px 8px; padding: 6px 8px; border-radius: 8px;
+       background: var(--soft); border-left: 3px solid var(--c); animation: slide 0.25s ease-out; }
+.msg .who { color: var(--c); font-weight: 600; font-size: 13px; }
+.msg .act { font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 0.04em; }
+.msg .act span { color: var(--muted); font-weight: 400; }
+.msg .say { grid-column: 2; overflow-wrap: anywhere; }
+.msg.flag { background: color-mix(in srgb, var(--bad) 12%, var(--panel)); }
+.msg.tool .say { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.empty { color: var(--muted); font-style: italic; }
+
+.bottom { display: grid; gap: 12px; margin-top: 12px; }
+.meters { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.meter .k { font-size: 12px; color: var(--muted); }
+.meter .v { font-size: 22px; font-weight: 700; font-family: var(--mono); }
+
+table.score { width: 100%; border-collapse: collapse; }
+.score th { font-size: 12px; color: var(--muted); font-weight: 600; text-align: right; padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.score td { padding: 8px; border-bottom: 1px solid var(--line); text-align: right; font-family: var(--mono); white-space: nowrap; }
+.score th:nth-child(-n+2), .score td:nth-child(-n+2) { text-align: left; }
+.score td:first-child, .score td:nth-child(2) { font-family: inherit; }
+.score td.l { text-align: left; font-family: inherit; }
+.score td:first-child b { display: block; }
+.score td:first-child small { color: var(--muted); }
+.score tr.cur td { background: var(--soft); }
+.pips { display: inline-flex; gap: 3px; vertical-align: -2px; margin-right: 6px; }
+.pips i { width: 13px; height: 13px; border-radius: 3px; background: var(--line); }
+.pips i.y { background: var(--ok); } .pips i.n { background: var(--bad); }
+.scorewrap { overflow-x: auto; }
+.codehead { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+.codehead h2 { margin: 0; }
+.codehead .graph-foot { font-family: var(--mono); font-size: 12px; min-height: 0; }
+/* the whole file, full height: the page scrolls, not the code box */
+pre.code { font: 12.5px/1.55 var(--mono); margin: 0; white-space: pre; overflow-x: auto; background: var(--soft); border-radius: 8px; padding: 10px 12px; }
+.code .c { color: var(--muted); font-style: italic; } .code .s { color: var(--ok); } .code .k { color: var(--watcher); } .code .d { color: var(--warn); }
+
+/* the run log: everything the run did, as it happened, like a terminal */
+.loghead { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.loghead h2 { margin: 0; } .loghead .spacer { flex: 1; }
+.loghead label { font-size: 12px; color: var(--muted); display: inline-flex; gap: 4px; align-items: center; }
+.loghead .btn { padding: 3px 10px; font-size: 12px; }
+.runlog { font: 12px/1.5 var(--mono); background: var(--soft); border-radius: 8px; padding: 8px 10px;
+          max-height: 460px; overflow-y: auto; overflow-x: hidden; }
+.runlog .ln { display: grid; grid-template-columns: 62px 78px minmax(0, 1fr); gap: 8px; padding: 1px 0; }
+.runlog .ts { color: var(--muted); text-align: right; }
+.runlog .ty { font-weight: 700; color: var(--c, var(--muted)); text-transform: uppercase; font-size: 10.5px; padding-top: 1px; }
+.runlog .tx { overflow-wrap: anywhere; white-space: pre-wrap; }
+.runlog .ln.big { border-top: 1px dashed var(--line); margin-top: 4px; padding-top: 4px; }
+.runlog .ln.hide { display: none; }
+.runlog details summary { cursor: pointer; } .runlog details summary::marker { color: var(--muted); }
+.runlog details pre { margin: 4px 0 6px; padding: 6px 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px;
+                      white-space: pre-wrap; overflow-wrap: anywhere; max-height: 320px; overflow-y: auto; font: inherit; }
+.runlog details b { color: var(--muted); font-weight: 600; font-size: 10.5px; text-transform: uppercase; }
+.lt-run { --c: var(--accent); } .lt-llm { --c: var(--evaluator); } .lt-err { --c: var(--bad); } .lt-msg { --c: var(--deal); }
+.lt-tool { --c: var(--scout); } .lt-world { --c: var(--budget); } .lt-ok { --c: var(--ok); }
+
+@keyframes pulse { 50% { stroke-opacity: 0.35; } }
+@keyframes glow { 50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 30%, transparent); } }
+@keyframes flash { 0% { background: color-mix(in srgb, var(--ok) 30%, transparent); } 100% { background: transparent; } }
+@keyframes slide { from { opacity: 0; transform: translateY(4px); } }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Four patterns, one query · LangGraph and CrewAI</h1>
+    <span class="sub">Same stores, same tools, same model. Only the coordination changes.</span>
+    <span class="spacer"></span>
+    <span class="badge" id="mode">mode: …</span>
+    <span class="badge"><span class="dot" id="conn"></span><span id="connText">connecting</span></span>
+    <button class="btn" id="theme" title="Switch theme">Theme: system</button>
+  </header>
+
+  <section class="panel controls">
+    <div class="row"><span class="label">Query</span><input class="query" id="query" spellcheck="false" maxlength="200"
+        aria-label="Query" title="Demo stores: a colour, a type (running or casual), an optional size and a budget. Enter runs it.">
+      <select id="examples" title="Queries to try: pick one to put it in the box"><option value="">Examples…</option></select></div>
+    <div class="row"><span class="label">Framework</span>
+      <span class="seg" id="fw"><button class="btn" data-fw="langgraph">LangGraph</button><button class="btn" data-fw="crewai">CrewAI</button></span>
+      <span class="label" style="width:auto;margin-left:14px">Brain</span>
+      <select id="brain" title="Who makes the agents' decisions">
+        <option value="offline">Scripted (offline)</option><option value="claude-haiku">Claude · haiku</option><option value="claude-sonnet">Claude · sonnet</option>
+      </select>
+      <span class="sub" id="fwNote" style="color:var(--muted);font-size:12px"></span>
+    </div>
+    <div class="row"><span class="label">World</span>
+      <span class="seg" id="world"><button class="btn" data-w="demo">Demo stores</button><button class="btn" data-w="live" title="Collects real listings in Chrome: about a minute">Live sites</button><button class="btn" data-w="recording">Live · recording</button></span>
+      <span class="sub" id="worldNote" style="color:var(--muted);font-size:12px"></span>
+    </div>
+    <div class="row" id="liveOpts" hidden><span class="label">Live</span>
+      <span class="live-only">Browser</span>
+      <span class="seg live-only" id="browser"><button class="btn" data-b="visible" title="Chrome opens and you watch it search">Show</button><button class="btn" data-b="hidden" title="Chrome runs hidden (sites block this more often)">Hide</button></span>
+      <button class="btn live-only" id="fresh" title="Search the three sites again now, then run all four patterns">↻ Collect fresh + run all</button>
+      <button class="btn danger" id="clearLive" title="Forget the saved live collection and its scoreboard rows: the next live run searches the sites again">✕ Clear live runs</button>
+      <a class="btn" id="evidence" href="evidence" target="_blank" rel="noopener" title="What each site showed: screenshots and every listing with its verdict">Evidence ↗</a>
+    </div>
+    <div class="row"><span class="label">Pattern</span><span class="row" id="levels"></span></div>
+    <div class="row">
+      <span class="label">Run</span>
+      <button class="btn primary" id="runSel" title="Run the selected pattern (Enter)">▶ Run</button>
+      <button class="btn" id="all" title="Run L0 to L3 one after another (A)">▶▶ Run all four</button>
+      <select id="pace" title="Pace: seconds between messages. Changing it also speeds up or slows down a run in progress">
+        <option value="1.4">Slow</option><option value="0.7" selected>Stage pace</option><option value="0.3">Quick</option><option value="0">Instant</option></select>
+      <button class="btn" id="pauseRun" disabled title="Pause the running pattern at its next step (Space)">❚❚ Pause</button>
+      <button class="btn danger" id="stop" disabled>■ Stop</button>
+      <button class="btn" id="resetAll" title="Start again: clear the scoreboard and every panel, back to the default query and the demo stores">⟲ Reset all</button>
+      <button class="btn" id="drop" disabled title="Level 3: a price drops in the feed (default query: the Sparx running shoe, ₹1,199 → ₹849)">↓ Drop price</button>
+    </div>
+  </section>
+
+  <section class="story">
+    <div class="caption" id="caption">Pick a pattern. Each one runs the real LangGraph graph in <code>patterns/</code> on the same query.</div>
+    <div class="banner" id="banner" hidden></div>
+  </section>
+
+  <section class="main">
+    <div class="panel">
+      <h2 id="worldTitle">The world: three stores</h2>
+      <div id="stores"></div>
+    </div>
+    <div class="panel">
+      <div class="graph-head"><h2 style="margin:0">The agents</h2><span class="step" id="step"></span></div>
+      <svg class="graph" id="graph" viewBox="0 0 1000 370" role="img" aria-label="Agent graph"></svg>
+      <div class="graph-foot" id="foot">Every box is a node in the graph; every moving dot is a message.</div>
+    </div>
+    <div class="panel">
+      <h2>Agent messages</h2>
+      <div class="msglist" id="msgs"><div class="empty">Nobody has said anything yet.</div></div>
+    </div>
+  </section>
+
+  <section class="bottom">
+    <div class="panel meters">
+      <div class="meter"><div class="k">Human steps</div><div class="v" id="m-human">–</div></div>
+      <div class="meter"><div class="k">Agents</div><div class="v" id="m-agents">0</div></div>
+      <div class="meter"><div class="k">Messages</div><div class="v" id="m-msgs">0</div></div>
+      <div class="meter"><div class="k">LLM calls</div><div class="v" id="m-calls">0</div></div>
+      <div class="meter"><div class="k">Tokens (est.)</div><div class="v" id="m-tok">0</div></div>
+    </div>
+    <div class="panel">
+      <h2>Scoreboard</h2>
+      <div class="scorewrap"><table class="score">
+        <thead><tr><th>Pattern</th><th>Framework</th><th>Bought</th><th>Score</th><th>Agents</th><th>LLM calls</th><th>Tokens</th><th>Seconds</th><th>Brain</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table></div>
+      <p class="graph-foot" id="checks">Checks: the query's colour and type · its size in stock · under its budget · genuine seller.</p>
+    </div>
+    <div class="panel">
+      <div class="loghead"><h2>Run log</h2>
+        <span class="graph-foot" id="logCount" style="min-height:0">What happens behind the boxes: every event and every model call, with its prompt and raw reply.</span>
+        <span class="spacer"></span>
+        <select id="logShow" title="Which lines to show">
+          <option value="all">Everything</option><option value="talk">Messages, tools, model calls</option><option value="llm">Model calls only</option></select>
+        <label title="Keep the newest line in view"><input type="checkbox" id="logFollow" checked> Follow</label>
+        <a class="btn" href="log" target="_blank" rel="noopener" title="The newest run's full log file (JSON lines), from output/patterns/">Log file ↗</a>
+      </div>
+      <div class="runlog" id="runlog"><div class="empty">Run a pattern and its log appears here.</div></div>
+    </div>
+    <div class="panel">
+      <div class="codehead"><h2>Code</h2><span class="graph-foot" id="codeHead">Select a pattern to see its code.</span></div>
+      <pre class="code" id="code"></pre>
+    </div>
+  </section>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
+const fmt = n => Number(n || 0).toLocaleString('en-IN');
+const store = {get: k => { try { return localStorage.getItem(k); } catch { return null; } },
+               set: (k, v) => { try { localStorage.setItem(k, v); } catch {} }};
+
+// ------------------------------------------------------------------ the four patterns
+
+const LEVELS = [
+  {name: 'Pipeline', short: 'fixed steps', cap: '<b>Level 0 · Scripted pipeline.</b> A developer wired search → filter → pick. Nobody can add a step.'},
+  {name: 'Planner → workers', short: 'hub and spoke', cap: '<b>Level 1 · Orchestrator → workers.</b> You give the query; a planner writes the checks and briefs one worker per check.'},
+  {name: 'Team + critic', short: 'parallel scouts, a reviewer', cap: '<b>Level 2 · Team + critic.</b> One scout per store, all at once. A critic checks the pick before anything is bought.'},
+  {name: 'Event-driven', short: 'no prompt', cap: '<b>Level 3 · Event-driven.</b> Nobody types anything. A price change wakes the same team, and it asks you before it buys.'},
+];
+const CREW_CAP = [
+  '<b>Level 0 · Sequential crew.</b> Three tasks a developer wrote; <code>Process.sequential</code> runs them in order. Every step is an agent call.',
+  '<b>Level 1 · Planner + fixed tasks.</b> A planner task writes the checks. Its plan is context for worker tasks that were fixed when the crew was built.',
+  '<b>Level 2 · Async tasks + guardrail.</b> Three scout tasks run at once (<code>async_execution</code>). The evaluator’s guardrail checks the seller and makes it retry with feedback.',
+  '<b>Level 3 · Flow.</b> <code>@start</code> waits for the price feed, <code>@router</code> decides, <code>@listen</code> runs the Level 2 crew. It asks you before it buys.'];
+const FWNAME = {langgraph: 'LangGraph', crewai: 'CrewAI'};
+let FW = store.get('patterns-fw') || 'langgraph', RUN_FW = FW;
+let STORES = ['demo-store-a', 'demo-store-b', 'demo-store-c'];
+let WORLD = store.get('patterns-world') || 'demo', RUN_WORLD = WORLD;
+const team = start => {
+  const P = {[start]: [6, 155], lead: [180, 155], evaluator: [585, 155], critic: [800, 40], checkout: [850, 270]};
+  STORES.forEach((s, i) => P['scout-' + s] = [385, 40 + i * 115]);
+  return P;
+};
+const LAYOUT = [
+  {you: [6, 155], search: [215, 155], filter: [425, 155], pick: [635, 155], checkout: [850, 155]},
+  {you: [6, 155], planner: [225, 155], search: [490, 4], size: [490, 104], price: [490, 204], pick: [490, 304], checkout: [850, 155]},
+  () => team('you'), () => team('feed')];   // built per run: the stores come from the run's world
+const EDGES = [
+  [['you', 'search'], ['search', 'filter'], ['filter', 'pick'], ['pick', 'checkout']],
+  [['you', 'planner'], ['planner', 'search'], ['planner', 'size'], ['planner', 'price'], ['planner', 'pick'], ['planner', 'checkout']],
+  null, null];
+EDGES[2] = EDGES[3] = start => [[start, 'lead'], ...STORES.map(s => ['lead', 'scout-' + s]), ...STORES.map(s => ['scout-' + s, 'evaluator']),
+                                 ['evaluator', 'critic'], ['critic', 'checkout']];
+const NODE = {
+  you: ['You', 'the query', 'human'], feed: ['Price feed', 'the trigger', 'human'],
+  search: ['Search', '', 'scout'], filter: ['Filter', 'price only', 'scout'], size: ['Size', '', 'scout'], price: ['Price', '', 'scout'],
+  pick: ['Pick', '', 'evaluator'], planner: ['Planner', 'writes the plan', 'deal'], lead: ['Coordinator', 'splits the work', 'deal'],
+  evaluator: ['Evaluator', 'picks the best', 'evaluator'], critic: ['Critic', 'checks the seller', 'guard'],
+  checkout: ['Checkout', 'simulated order', 'checkout']};
+const nodeInfo = id => id.startsWith('scout-') ? ['Scout', id.slice(6), 'scout'] : NODE[id] || [id, '', 'human'];
+
+// ------------------------------------------------------------------ graph
+
+const NW = 140, NH = 60;
+let P = {}, LV = null, RESULTS = {}, running = false, S = {};
+const right = id => [P[id][0] + NW, P[id][1] + NH / 2], left = id => [P[id][0], P[id][1] + NH / 2];
+function path(a, b) {
+  let [x1, y1] = right(a), [x2, y2] = left(b);
+  if (P[b][0] <= P[a][0] + NW) { [x1, y1] = [P[a][0] + NW / 2, P[a][1] + (P[b][1] > P[a][1] ? NH : 0)]; [x2, y2] = [P[b][0] + NW / 2, P[b][1] + (P[b][1] > P[a][1] ? 0 : NH)]; }
+  const dx = (x2 - x1) / 2;
+  return `M${x1},${y1} C${x1 + dx},${y1} ${x2 - dx},${y2} ${x2},${y2}`;
+}
+function drawGraph(level) {
+  P = typeof LAYOUT[level] === 'function' ? LAYOUT[level]() : LAYOUT[level];
+  const start = level === 3 ? 'feed' : 'you';
+  const E = typeof EDGES[level] === 'function' ? EDGES[level](start) : EDGES[level];
+  let h = '';
+  for (const [a, b] of E) h += `<path class="edge" id="e-${a}>${b}" d="${path(a, b)}"/>`;
+  for (const id of Object.keys(P)) {
+    let [t, s, c] = nodeInfo(id);
+    if (id === 'lead' && level === 3) [t, s, c] = ['Watcher', 'saved query', 'watcher'];
+    if (id === 'checkout' && level === 3) s = 'asks you first';
+    const [x, y] = P[id];
+    h += `<g class="node" data-id="${esc(id)}" style="--c: var(--${c})" transform="translate(${x},${y})">
+      <rect width="${NW}" height="${NH}" rx="10"/><text class="t" x="${NW / 2}" y="26">${esc(t)}</text>
+      <text class="s" x="${NW / 2}" y="46">${esc(s)}</text></g>`;
+  }
+  $('#graph').innerHTML = h;
+}
+const nodeEl = id => document.querySelector(`.node[data-id="${CSS.escape(id)}"]`);
+function setNode(id, state, sub) {
+  const g = nodeEl(id);
+  if (!g) return;
+  g.classList.remove('active', 'done', 'waiting', 'bad');
+  if (state) g.classList.add(state);
+  if (sub) g.querySelector('.s').textContent = sub.length > 22 ? sub.slice(0, 21) + '…' : sub;
+}
+function flow(a, b, kind) {
+  let e = document.getElementById('e-' + a + '>' + b), rev = false;
+  if (!e) { e = document.getElementById('e-' + b + '>' + a); rev = true; }
+  if (!e) return;
+  const cls = kind === 'flag' ? 'hot' : kind === 'ok' ? 'ok' : 'on';
+  e.classList.remove('on', 'hot', 'ok'); e.classList.add(cls);
+  const ns = 'http://www.w3.org/2000/svg', dot = document.createElementNS(ns, 'circle');
+  dot.setAttribute('r', 6);
+  dot.style.fill = cls === 'hot' ? 'var(--bad)' : cls === 'ok' ? 'var(--ok)' : 'var(--accent)';
+  const anim = document.createElementNS(ns, 'animateMotion');
+  const dur = Math.max(0.35, Math.min(0.8, pace() * 1.1));
+  anim.setAttribute('dur', dur + 's'); anim.setAttribute('path', e.getAttribute('d'));
+  anim.setAttribute('begin', 'indefinite'); anim.setAttribute('fill', 'freeze');
+  if (rev) { anim.setAttribute('keyPoints', '1;0'); anim.setAttribute('keyTimes', '0;1'); anim.setAttribute('calcMode', 'linear'); }
+  dot.appendChild(anim); $('#graph').appendChild(dot);
+  try { anim.beginElement(); } catch {}
+  setTimeout(() => dot.remove(), dur * 1000 + 100);
+}
+const pace = () => parseFloat($('#pace').value);
+
+// ------------------------------------------------------------------ the world panel
+
+function drawStores(listings) {
+  S.items = {};
+  const item = x => {
+    const name = x.url ? `<a class="name" href="${esc(x.url)}" target="_blank" rel="noopener noreferrer">${esc(x.name)}</a>` : `<span class="name">${esc(x.name)}</span>`;
+    const meta = x.url   // live evidence: what the collector actually saw
+      ? `${x.color === 'other' ? 'colour ?' : x.color === 'any' ? '' : esc(x.color)} ${x.type === 'other' ? '· type ?' : x.type === 'any' ? '' : esc(x.type)} · size unverified · <span class="ev ${x.evidence === 'product page read' ? 'ok' : 'no'}">${esc(x.evidence)}</span>`
+      : `${esc(x.color)} ${esc(x.type)} · sizes ${x.sizes.join(', ')} · ${esc(x.seller)}`;
+    return `<div class="item" id="li-${x.id}">${name}<span class="price">₹${fmt(x.price)}</span><span class="meta">${meta}</span><span class="tag"></span></div>`;
+  };
+  $('#stores').innerHTML = STORES.map(s => {
+    const own = listings.filter(x => x.store === s);
+    return `<div class="store"><b>${esc(s)}</b>${own.map(item).join('') || '<div class="item"><span class="meta">no listings read</span></div>'}</div>`;
+  }).join('');
+}
+const TAG = {kept: '✓ matches', pick: '→ picked', rejected: '✗ rejected', bought: '✓ ordered', out: ''};
+function markListing(ids, state, note) {
+  for (const id of ids) {
+    const el = $('#li-' + id);
+    if (!el) continue;
+    el.classList.remove('checked', 'kept', 'out', 'pick', 'rejected', 'bought');
+    el.classList.add(state);
+    const t = state === 'checked' ? '' : (TAG[state] || '') + (note ? (TAG[state] ? ' · ' : '') + note : '');
+    el.querySelector('.tag').textContent = t;
+  }
+}
+
+// ------------------------------------------------------------------ messages, meters, scoreboard
+
+const KIND = {task: 'TASK', data: 'DATA', flag: 'FLAG', ok: 'OK', event: 'EVENT'};
+function label(id) {
+  if (id.startsWith('scout-')) { const st = id.slice(6); return st.startsWith('demo-store-') ? 'Scout ' + st.slice(-1) : st + ' scout'; }
+  if (S.labels && S.labels[id]) return S.labels[id];
+  if (id === 'lead') return LV === 3 ? 'Watcher' : 'Coordinator';
+  return (NODE[id] || [id])[0];
+}
+function color(id) { return id === 'lead' && LV === 3 ? 'watcher' : nodeInfo(id)[2]; }
+function addMsg(from, act, text, cls, to) {
+  const list = $('#msgs');
+  if (list.querySelector('.empty')) list.innerHTML = '';
+  const el = document.createElement('div');
+  el.className = 'msg' + (cls ? ' ' + cls : '');
+  el.style.setProperty('--c', `var(--${color(from)})`);
+  el.innerHTML = `<div class="who">${esc(label(from))}</div><div class="act">${esc(act)}${to ? ` <span>→ ${esc(label(to))}</span>` : ''}</div><div class="say">${esc(text)}</div>`;
+  list.appendChild(el);
+  list.scrollTop = list.scrollHeight;
+}
+function meters() {
+  $('#m-human').textContent = S.human ?? '–'; $('#m-agents').textContent = S.agents || 0; $('#m-msgs').textContent = S.msgs || 0;
+  $('#m-calls').textContent = S.calls || 0; $('#m-tok').textContent = fmt(S.tok);
+}
+function banner(html, kind) { const b = $('#banner'); b.hidden = !html; b.className = 'banner ' + (kind || ''); b.innerHTML = html || ''; }
+function pips(c) { return '<span class="pips">' + Object.values(c).map(v => `<i class="${v ? 'y' : 'n'}"></i>`).join('') + '</span>'; }
+function renderScores() {
+  $('#rows').innerHTML = LEVELS.map((L, i) => ['langgraph', 'crewai'].map((fw, k) => {
+    const r = RESULTS[WORLD + ':' + fw + ':' + i], g = r && r.grade, s = r && r.stats;
+    const head = k ? '' : `<td rowspan="2"><b>L${i} · ${esc(L.name)}</b><small>${esc(L.short)}</small></td>`;
+    const cur = i === LV && fw === RUN_FW && WORLD === RUN_WORLD ? 'cur' : '';
+    const tag = `<td class="l"><span class="fwtag fw-${fw}">${FWNAME[fw]}</span></td>`;
+    if (!r) return `<tr class="${cur}">${head}${tag}<td class="l">—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>`;
+    return `<tr class="${cur}">${head}${tag}<td class="l">${g ? esc(g.name) + ' · ₹' + fmt(g.price) + ' <small style="color:var(--muted)">' + esc(g.store) + '</small>' : 'nothing'}</td>
+      <td>${g ? pips(g.checks) + g.score + '/' + g.of : '—'}</td><td>${s.agents}</td><td>${s.llm_calls}</td><td>${fmt(s.tokens)}</td><td>${s.seconds}</td><td>${esc(r.brain || '')}</td></tr>`;
+  }).join('')).join('');
+}
+
+// ------------------------------------------------------------------ code tab
+
+const KW = /("""[\s\S]*?"""|"(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'|#[^\n]*|\b(?:def|class|return|if|else|elif|for|in|import|from|not|and|or|with|lambda|None|True|False)\b)/g;
+function hl(src) {
+  const e = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  let out = '', last = 0;
+  for (const m of src.matchAll(KW)) {
+    const t = m[0], c = t.startsWith('"""') ? 'd' : t[0] === '#' ? 'c' : /^["']/.test(t) ? 's' : 'k';
+    out += e(src.slice(last, m.index)) + `<span class="${c}">${e(t)}</span>`; last = m.index + t.length;
+  }
+  return out + e(src.slice(last));
+}
+let CODE_REQ = 0;
+async function loadCode(level, fw = RUN_FW) {
+  const req = ++CODE_REQ;   // only the newest request draws, so a slow earlier one can't show the wrong file
+  try { const j = await (await fetch(`code?level=${level}&framework=${fw}`)).json(); if (req !== CODE_REQ) return; $('#codeHead').textContent = j.file; $('#code').innerHTML = hl(j.code); }
+  catch { $('#codeHead').textContent = 'Could not load the code.'; }
+}
+
+// ------------------------------------------------------------------ events from patterns/server.py
+
+function controls() {
+  document.querySelectorAll('#levels .btn, #runSel, #all, #fw .btn, #world .btn, #browser .btn, #fresh, #clearLive, #resetAll, #brain').forEach(b => b.disabled = running || b.dataset.off === '1');
+  $('#query').disabled = $('#examples').disabled = running || WORLD === 'recording';
+  $('#stop').disabled = !running;
+  $('#pauseRun').disabled = !running;
+  if (!running) { $('#drop').disabled = true; $('#drop').classList.remove('pulse'); showPaused(false); }
+}
+// ------------------------------------------------------------------ the run log
+// Every event the server streams, plus each raw model call (lab/llm.py → trace → patterns/common.py), one line each.
+const LOGTYPE = {run_start: 'run', run_end: 'ok', llm: 'llm', llm_error: 'err', error: 'err', stopped: 'err', msg: 'msg', say: 'msg',
+                 tool: 'tool', listing: 'world', price: 'world', collect: 'world', waiting: 'world', notify: 'ok'};
+const LOGTALK = new Set(['run_start', 'run_end', 'msg', 'say', 'tool', 'llm', 'llm_error', 'error', 'stopped', 'notify', 'price']);
+const LOGSKIP = new Set(['hello', 'idle']);
+let LOG_T0 = Date.now(), LOG_N = 0;
+const txt = v => v == null ? '' : typeof v === 'string' ? v : JSON.stringify(v, null, 2);
+const one = (v, n = 160) => { const t = txt(v).replace(/\s+/g, ' '); return t.length > n ? t.slice(0, n) + '…' : t; };
+function logText(ev) {
+  switch (ev.type) {
+    case 'run_start': return `L${ev.level} · ${ev.title} · ${FWNAME[ev.framework] || ev.framework} · brain ${ev.mode}${ev.model ? ' ' + ev.model : ''} · world ${(ev.world || {}).kind || 'demo'} · query “${ev.query}”`;
+    case 'run_end': { const g = ev.grade; return (g ? `bought ${g.name} · ₹${fmt(g.price)} · score ${g.score}/${g.of}` : 'nothing bought') +
+                      ` · ${ev.stats.llm_calls} model calls · ${fmt(ev.stats.tokens)} tok · ${ev.stats.seconds}s`; }
+    case 'agent': return `${ev.id} joins: ${ev.label} (${ev.role})`;
+    case 'status': return `${ev.id} → ${ev.state}${ev.text ? ' · ' + ev.text : ''}`;
+    case 'step': return ev.text;
+    case 'msg': return `${ev.from} → ${ev.to} [${ev.kind}] ${ev.text}`;
+    case 'say': return `${ev.id}: ${ev.text}`;
+    case 'tool': return `${ev.agent} · ${ev.tool}(${one(ev.args, 120)}) → ${one(ev.result, 400)}`;
+    case 'listing': return `${ev.ids.join(', ')} → ${ev.state}${ev.note ? ' · ' + ev.note : ''}`;
+    case 'note': case 'collect': return ev.text;
+    case 'tokens': return `${ev.agent} +${fmt(ev.tokens)} tok (run total ${fmt(ev.total)})${ev.llm && ev.llm.model ? ' · ' + ev.llm.model : ''}`;
+    case 'llm_error': return `${ev.agent} · the model call failed, using the scripted reply: ${ev.error}`;
+    case 'price': return `${ev.id}: ₹${fmt(ev.old)} → ₹${fmt(ev.new)}`;
+    case 'waiting': return `waiting for the world (acts by itself in ${Math.round(ev.auto_drop)}s)`;
+    case 'notify': return `${ev.title}: ${ev.text}`;
+    case 'paused': return ev.paused ? 'paused' : 'resumed';
+    case 'error': return ev.error;
+    case 'stopped': return 'stopped by you';
+    default: { const {type, t, ...rest} = ev; return one(rest, 300); }
+  }
+}
+function logLlm(ev) {
+  const m = ev.meta || {}, who = m.live ? `${m.model} · ${(m.duration_ms / 1000).toFixed(1)} s` : (m.model || 'scripted');
+  const ask = ev.prompt != null ? ['Prompt (CrewAI transcript, last 4,000 chars)', ev.prompt] : ['Role', ev.role, 'Context', ev.context];
+  let body = '';
+  for (let i = 0; i < ask.length; i += 2) body += `<b>${ask[i]}</b><pre>${esc(txt(ask[i + 1]))}</pre>`;
+  body += `<b>Reply</b><pre>${esc(txt(ev.reply))}</pre>`;
+  return `<details><summary>${esc(ev.agent)} · ${esc(who)} · ${fmt(ev.tokens)} tok · ${esc(one(ev.reply, 110))}</summary>${body}</details>`;
+}
+function logFilter(row) {
+  const f = $('#logShow').value, t = row.dataset.t;
+  row.classList.toggle('hide', f === 'llm' ? !(t === 'llm' || t === 'llm_error') : f === 'talk' ? !LOGTALK.has(t) : false);
+}
+function logLine(ev) {
+  if (LOGSKIP.has(ev.type)) return;
+  const box = $('#runlog');
+  if (box.querySelector('.empty')) box.innerHTML = '';
+  if (ev.type === 'run_start') LOG_T0 = Date.now() - (ev.t || 0) * 1000;
+  const t = ev.t != null ? ev.t : (Date.now() - LOG_T0) / 1000;
+  const row = document.createElement('div');
+  row.className = `ln lt-${LOGTYPE[ev.type] || 'x'}` + (ev.type === 'run_start' && box.children.length ? ' big' : '');
+  row.dataset.t = ev.type;
+  row.innerHTML = `<span class="ts">+${t.toFixed(2)}s</span><span class="ty">${esc(ev.type.replace('_', ' '))}</span>` +
+    `<span class="tx">${ev.type === 'llm' ? logLlm(ev) : esc(logText(ev))}</span>`;
+  logFilter(row);
+  box.append(row);
+  while (box.children.length > 3000) box.firstChild.remove();   // a long session stays light; the file keeps everything
+  $('#logCount').textContent = `${++LOG_N} lines · each run's full log is saved in output/patterns/`;
+  if ($('#logFollow').checked) box.scrollTop = box.scrollHeight;
+}
+$('#logShow').onchange = () => { store.set('patterns-logshow', $('#logShow').value); $('#runlog').querySelectorAll('.ln').forEach(logFilter); };
+if (['all', 'talk', 'llm'].includes(store.get('patterns-logshow'))) $('#logShow').value = store.get('patterns-logshow');
+$('#logFollow').onchange = () => { if ($('#logFollow').checked) $('#runlog').scrollTop = $('#runlog').scrollHeight; };
+
+function onEvent(ev) {
+  try { logLine(ev); } catch (e) { console.warn('run log', e); }
+  switch (ev.type) {
+    case 'hello':
+      DEFAULT_QUERY = ev.default_query || ev.query; LAST_QUERY = ev.query;
+      $('#query').value = store.get('patterns-query') || DEFAULT_QUERY;
+      $('#examples').innerHTML = '<option value="">Examples…</option>' + (ev.examples || []).map(q =>
+        `<option value="${esc(q)}">${esc(q)}${q === DEFAULT_QUERY ? ' (default)' : ''}</option>`).join('');
+      $('#mode').textContent = ev.mode === 'offline' ? 'mode: offline (scripted replies)' : `mode: ${ev.mode} ${ev.model}`;
+      $('#mode').classList.toggle('live', ev.mode !== 'offline');
+      RESULTS = {}; (ev.results || []).forEach(r => RESULTS[r.world.kind + ':' + r.framework + ':' + r.level] = r);
+      if (!ev.live) { const b = $('#world [data-w="live"]'); b.dataset.off = '1'; b.title = 'pip install -r requirements-live.txt'; }
+      if (!ev.recording) $('#world [data-w="recording"]').dataset.off = '1';
+      if ($('#world [data-w="' + WORLD + '"]').dataset.off) setWorld('demo');
+      if (!ev.crewai) { const b = $('#fw [data-fw="crewai"]'); b.dataset.off = '1'; b.title = 'pip install -r requirements-crewai.txt'; if (FW === 'crewai') setFw('langgraph'); }
+      if (!ev.claude) $('#brain').querySelectorAll('option[value^="claude"]').forEach(o => { o.disabled = true; o.textContent += ' (claude CLI not found)'; });
+      if (!store.get('patterns-brain')) $('#brain').value = ev.mode === 'claude' ? 'claude-' + (ev.model || 'sonnet') : 'offline';
+      if (!$('#brain').value || $('#brain').selectedOptions[0].disabled) $('#brain').value = 'offline';
+      running = ev.running; controls(); renderScores(); showPaused(running && ev.paused);
+      if (store.get('patterns-notice')) { banner(esc(store.get('patterns-notice')), 'warn'); store.set('patterns-notice', ''); }
+      break;
+    case 'paused': showPaused(ev.paused); if (ev.paused) banner('Paused. Press ▶ Resume (or Space) to carry on.', 'warn'); else banner(null); break;
+    case 'run_start':
+      running = true; controls(); LV = ev.level; RUN_FW = ev.framework || 'langgraph';
+      RUN_WORLD = (ev.world || {}).kind || 'demo'; STORES = ev.stores || STORES;
+      if (RUN_WORLD !== WORLD) setWorld(RUN_WORLD);   // the page shows the world that is running
+      if (ev.query !== LAST_QUERY) { RESULTS = {}; LAST_QUERY = ev.query; }   // a new query starts a new scoreboard
+      $('#checks').textContent = 'Checks: ' + (ev.checks || []).join(' · ') + (RUN_WORLD === 'demo' ? '.'
+        : ' (type and colour from the evidence; verified evidence: store’s own site, product page read, fresh).');
+      $('#worldTitle').textContent = RUN_WORLD === 'demo' ? 'The world: three demo stores' : 'The world: ' + ev.world.label;
+      S = {human: ev.human_steps, agents: 0, msgs: 0, calls: 0, tok: 0, labels: {}};
+      $('#mode').textContent = ev.mode === 'offline' ? 'mode: offline (scripted replies)' : `mode: ${ev.mode} ${ev.model || 'sonnet'}`;
+      $('#mode').classList.toggle('live', ev.mode !== 'offline');
+      SEL = LV; document.querySelectorAll('#levels .btn').forEach(b => b.classList.toggle('on', +b.dataset.l === LV));
+      $('#runSel').textContent = `▶ Run L${LV} · ${LEVELS[LV].name}`;
+      $('#caption').innerHTML = `<span class="fwtag fw-${RUN_FW}">${FWNAME[RUN_FW]}</span>` + (RUN_FW === 'crewai' ? CREW_CAP[LV] : LEVELS[LV].cap);
+      $('#query').value = ev.query;
+      $('#step').textContent = ''; $('#foot').textContent = 'Every box is a node in the graph; every moving dot is a message.'; $('#foot').className = 'graph-foot';
+      $('#msgs').innerHTML = ''; banner(null);
+      drawGraph(LV); drawStores(ev.listings); meters(); renderScores(); loadCode(LV);
+      if (RUN_WORLD !== 'demo') $('#caption').innerHTML += ' <span style="color:var(--muted)">Live evidence: a search page can’t show size or stock, so they stay unverified and the critic checks the evidence instead of a seller register.</span>';
+      break;
+    case 'collect': banner('Live sites · ' + esc(ev.text), 'warn'); break;
+    case 'agent':
+      if (ev.role !== 'user' && ev.role !== 'infra') { S.agents++; meters(); }
+      if (ev.label && !ev.id.startsWith('scout-')) { S.labels[ev.id] = ev.label; const n = nodeEl(ev.id); if (n) n.querySelector('.t').textContent = ev.label; }
+      break;
+    case 'status': setNode(ev.id, ev.state, ev.text); break;
+    case 'step': $('#step').textContent = '— ' + ev.text; break;
+    case 'msg':
+      flow(ev.from, ev.to, ev.kind); S.msgs++; meters();
+      addMsg(ev.from, KIND[ev.kind] || ev.kind, ev.text, ev.kind === 'flag' ? 'flag' : '', ev.to); break;
+    case 'say': addMsg(ev.id, 'SAYS', ev.text, ev.kind === 'bad' ? 'flag' : ''); break;
+    case 'tool': addMsg(ev.agent, 'TOOL ' + ev.tool, ev.result, 'tool'); break;
+    case 'note': $('#foot').textContent = ev.text; $('#foot').className = 'graph-foot ' + (ev.kind === 'sys' ? '' : ev.kind); break;
+    case 'listing': markListing(ev.ids, ev.state, ev.note); break;
+    case 'price': {
+      const el = $('#li-' + ev.id);
+      if (el) { el.querySelector('.price').innerHTML = `<span class="old">₹${fmt(ev.old)}</span>₹${fmt(ev.new)}`; el.classList.add('flash'); }
+      setNode('feed', 'done', `₹${fmt(ev.old)} → ₹${fmt(ev.new)}`);
+      $('#foot').textContent = 'The price changed in the world. Nobody typed anything.'; $('#foot').className = 'graph-foot';
+      $('#drop').disabled = true; $('#drop').classList.remove('pulse'); break;
+    }
+    case 'tokens': {
+      S.calls++; S.tok = ev.total; meters();
+      const m = ev.llm || {};
+      if (m.live) addMsg(ev.agent, 'LLM', `${m.model} · ${(m.duration_ms / 1000).toFixed(1)} s · ${fmt(ev.tokens)} tok`, 'llm live');
+      else if (m.model && m.model !== 'scripted') addMsg(ev.agent, 'LLM', m.model, 'llm flag');
+      break;
+    }
+    case 'waiting':
+      $('#drop').disabled = false; $('#drop').classList.add('pulse');
+      $('#foot').textContent = RUN_WORLD === 'demo' ? `Waiting for the price feed. Press ↓ Drop price, or it drops by itself in ${Math.round(ev.auto_drop)}s.`
+        : `Waiting for the scheduled re-check. Press ↓ Drop price to run it now, or it runs by itself in ${Math.round(ev.auto_drop)}s.`;
+      $('#foot').className = 'graph-foot warn'; break;
+    case 'notify': banner(`Notification to you: ${esc(ev.title)}. ${esc(ev.text)}`, 'warn'); break;
+    case 'run_end': {
+      RESULTS[ev.world.kind + ':' + ev.framework + ':' + ev.level] = ev; renderScores();
+      const g = ev.grade;
+      if (!g) banner('Nothing bought: no listing passed.', 'warn');
+      else if (ev.level !== 3) banner(`${g.score === g.of ? '✓' : '✗'} Bought ${esc(g.name)} · ₹${fmt(g.price)} · score ${g.score}/${g.of}` +
+        (g.score < g.of ? ' · missed: ' + esc(Object.keys(g.checks).filter(k => !g.checks[k]).join(', ')) : ''), g.score === g.of ? 'ok' : 'bad');
+      else banner(`✓ Nobody typed anything. The team found ${esc(g.name)} at ₹${fmt(g.price)} (score ${g.score}/${g.of}) and is asking you before it buys.`, 'ok');
+      break;
+    }
+    case 'launched': running = true; controls(); $('#pauseRun').disabled = true; break;   // Stop works from here; Pause once a level runs
+    case 'idle': running = false; controls(); break;
+    case 'reset':   // the server cleared it: reload into empty panels (it no longer replays the last run)
+      if (ev.what === 'all') ['patterns-query', 'patterns-world'].forEach(k => store.set(k, ''));
+      store.set('patterns-notice', ev.what === 'all' ? 'Reset: default query, demo stores, empty scoreboard.'
+        : 'Live runs cleared. The next Live sites run searches the sites again; Live · recording replays the sample shipped in data/.');
+      location.reload(); break;
+    case 'stopped': running = false; controls(); banner('Stopped.', 'warn'); break;
+    case 'error': running = false; controls(); banner('Error: ' + esc(ev.error), 'bad'); break;
+  }
+}
+
+async function post(path, body) {
+  const r = await fetch(path, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body || {})});
+  const j = await r.json();
+  if (j.error) banner(esc(j.error), 'bad');
+}
+let BROWSER = store.get('patterns-browser') || 'visible', DEFAULT_QUERY = '', LAST_QUERY = '';
+const query = () => WORLD !== 'recording' && $('#query').value.trim() !== DEFAULT_QUERY ? $('#query').value.trim() : null;
+const runLevel = (level, fresh = false) => post('run', {level, framework: FW, brain: $('#brain').value, world: WORLD, browser: BROWSER, fresh,
+                                                        query: query(), pace: pace(), auto_drop: level === 'all' ? 6 : 20});
+$('#query').oninput = () => store.set('patterns-query', $('#query').value.trim() === DEFAULT_QUERY ? '' : $('#query').value);
+$('#query').onkeydown = e => { if (e.key === 'Enter' && !running) runLevel(SEL); };
+$('#examples').onchange = () => {
+  if (!$('#examples').value) return;
+  $('#query').value = $('#examples').value; $('#examples').value = ''; $('#query').oninput();
+};
+function setBrowser(b) { BROWSER = b; store.set('patterns-browser', b); document.querySelectorAll('#browser .btn').forEach(x => x.classList.toggle('on', x.dataset.b === b)); }
+document.querySelectorAll('#browser .btn').forEach(b => b.onclick = () => setBrowser(b.dataset.b));
+$('#fresh').onclick = () => runLevel('all', true);
+$('#clearLive').onclick = () => { if (confirm('Forget the saved live collection and clear its scoreboard rows?')) post('clear-live'); };
+$('#resetAll').onclick = () => { if (confirm('Clear the scoreboard and every panel, and go back to the default query?')) post('reset'); };
+setBrowser(BROWSER);
+function setWorld(w) {
+  WORLD = w; store.set('patterns-world', w);
+  document.querySelectorAll('#world .btn').forEach(b => b.classList.toggle('on', b.dataset.w === w));
+  $('#worldNote').textContent = {demo: 'Three demo stores with built-in traps: same result every run.',
+    live: 'Amazon.in, Flipkart and Myntra in your Chrome. Collects once (about a minute), reused for 15 minutes.',
+    recording: 'The last live collection, replayed: for a stage without network.'}[w];
+  $('#liveOpts').hidden = w === 'demo';
+  $('#query').title = w === 'recording' ? 'A recording replays the query it was collected for.'
+    : 'A colour, a type (running or casual), an optional size and a budget. Enter runs it.'
+      + (w === 'live' ? ' The sites are searched for colour, type and budget; size stays unverified.' : '');
+  $('#query').disabled = $('#examples').disabled = running || w === 'recording';
+  document.querySelectorAll('#liveOpts .live-only').forEach(x => x.hidden = w !== 'live');
+  renderScores();
+}
+document.querySelectorAll('#world .btn').forEach(b => b.onclick = () => { if (!b.dataset.off) setWorld(b.dataset.w); });
+setWorld(WORLD);
+function setFw(fw) {
+  FW = fw; store.set('patterns-fw', fw);
+  document.querySelectorAll('#fw .btn').forEach(b => b.classList.toggle('on', b.dataset.fw === fw));
+  $('#fwNote').textContent = fw === 'crewai' ? 'Agents, tasks, crews and a Flow (crews/). Every step is an agent call.'
+                                             : 'A graph of nodes and edges (patterns/). Steps can be code or model calls.';
+  if (window.preview) window.preview();   // the selected pattern's caption and code follow the framework
+}
+document.querySelectorAll('#fw .btn').forEach(b => b.onclick = () => setFw(b.dataset.fw));
+const savedBrain = store.get('patterns-brain');
+if (savedBrain) $('#brain').value = savedBrain;
+$('#brain').onchange = () => store.set('patterns-brain', $('#brain').value);
+setFw(FW);
+
+LEVELS.forEach((L, i) => {
+  const b = document.createElement('button');
+  b.className = 'btn lvl'; b.dataset.l = i;
+  b.innerHTML = `<b>L${i} · ${esc(L.name)}</b><small>${esc(L.short)}</small>`;
+  b.onclick = () => select(i);
+  $('#levels').append(b);
+});
+// Clicking a pattern only selects it (description, graph and code preview); ▶ Run starts it.
+let SEL = +(store.get('patterns-level') ?? 0);
+function select(i) {
+  SEL = i; store.set('patterns-level', i);
+  document.querySelectorAll('#levels .btn').forEach(b => b.classList.toggle('on', +b.dataset.l === i));
+  $('#runSel').textContent = `▶ Run L${i} · ${LEVELS[i].name}`;
+  if (running) return;
+  LV = i; RUN_FW = FW;
+  $('#caption').innerHTML = `<span class="fwtag fw-${FW}">${FWNAME[FW]}</span>` + (FW === 'crewai' ? CREW_CAP[i] : LEVELS[i].cap)
+    + ' <span style="color:var(--muted)">Press ▶ Run when ready.</span>';
+  drawGraph(i); renderScores(); loadCode(i, FW);
+}
+window.preview = () => select(SEL);
+select(SEL);
+$('#runSel').onclick = () => runLevel(SEL);
+$('#all').onclick = () => runLevel('all');
+$('#stop').onclick = () => {   // the run stops at its next step: a model call or CrewAI still loading finishes first
+  $('#stop').disabled = true; banner('Stopping… (at the next step)', 'warn'); post('stop');
+};
+// Pause/resume a running pattern, and change its pace while it runs
+let PAUSED_RUN = false;
+function showPaused(p) { PAUSED_RUN = p; $('#pauseRun').textContent = p ? '▶ Resume' : '❚❚ Pause'; $('#pauseRun').classList.toggle('primary', p); }
+$('#pauseRun').onclick = () => post('pause', {paused: !PAUSED_RUN});
+$('#pace').onchange = () => { store.set('patterns-pace', $('#pace').value); if (running) post('pace', {pace: pace()}); };
+if (store.get('patterns-pace') !== null && [...$('#pace').options].some(o => o.value === store.get('patterns-pace'))) $('#pace').value = store.get('patterns-pace');
+$('#drop').onclick = () => post('drop');
+document.addEventListener('keydown', e => {
+  if (e.target.closest('button, select, input')) return;
+  if (e.key === ' ' && running) { e.preventDefault(); $('#pauseRun').click(); return; }
+  if (running) return;
+  if (/^[0-3]$/.test(e.key)) select(+e.key); else if (e.key === 'Enter') runLevel(SEL); else if (e.key === 'a') runLevel('all');
+});
+
+// Theme: system / light / dark, like the guardrails lab. Inside talk.html: ?embed=1&theme=dark.
+const QS = new URLSearchParams(location.search);
+if (QS.has('embed')) {
+  document.body.classList.add('embed');
+  // Inside the talk: report this page's height so the talk sizes the frame and the whole page scrolls as one.
+  const report = () => parent.postMessage({type: 'demo-height', h: document.documentElement.scrollHeight}, '*');
+  new ResizeObserver(report).observe(document.body);
+  addEventListener('load', report);
+}
+const THEMES = ['system', 'light', 'dark'];
+function applyTheme(t) {
+  if (t === 'system') document.documentElement.removeAttribute('data-theme'); else document.documentElement.dataset.theme = t;
+  $('#theme').textContent = 'Theme: ' + t;
+}
+let theme = QS.get('theme') || store.get('patterns-theme') || 'system';
+applyTheme(theme);
+$('#theme').onclick = () => { theme = THEMES[(THEMES.indexOf(theme) + 1) % 3]; store.set('patterns-theme', theme); applyTheme(theme); };
+
+renderScores();
+const es = new EventSource('events');
+es.onopen = () => { $('#conn').classList.add('on'); $('#connText').textContent = 'connected'; };
+es.onerror = () => { $('#conn').classList.remove('on'); $('#connText').textContent = 'reconnecting…'; };
+es.onmessage = m => onEvent(JSON.parse(m.data));
+</script>
+</body>
+</html>

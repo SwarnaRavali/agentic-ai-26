@@ -1,0 +1,4 @@
+# Optional: the CrewAI version of Demo 1 (crews/). Heavier: it also installs chromadb, grpc and more.
+# Needs Python 3.10-3.13: crewai 1.15.28 declares Requires-Python >=3.10,<3.14 (https://pypi.org/project/crewai/1.15.28/).
+-r requirements.txt
+crewai==1.15.28

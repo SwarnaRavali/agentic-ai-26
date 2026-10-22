@@ -1,0 +1,846 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Autonomy Lab</title>
+<style>
+:root {
+  --bg: #f4f6f8; --panel: #ffffff; --ink: #1b1f24; --muted: #5f6b7a; --line: #d6dce4; --soft: #eef1f5;
+  --accent: #2563eb; --ok: #15803d; --warn: #b45309; --bad: #dc2626;
+  --watcher: #a21caf; --scout: #ea580c; --evaluator: #0e7490; --deal: #2563eb; --budget: #a16207;
+  --checkout: #15803d; --guard: #dc2626; --human: #334155;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1116; --panel: #161a21; --ink: #e6e9ee; --muted: #94a0b1; --line: #2a313b; --soft: #1e242c;
+    --accent: #60a5fa; --ok: #4ade80; --warn: #fbbf24; --bad: #f87171;
+    --watcher: #e879f9; --scout: #fb923c; --evaluator: #22d3ee; --deal: #60a5fa; --budget: #facc15;
+    --checkout: #4ade80; --guard: #f87171; --human: #cbd5e1;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1116; --panel: #161a21; --ink: #e6e9ee; --muted: #94a0b1; --line: #2a313b; --soft: #1e242c;
+  --accent: #60a5fa; --ok: #4ade80; --warn: #fbbf24; --bad: #f87171;
+  --watcher: #e879f9; --scout: #fb923c; --evaluator: #22d3ee; --deal: #60a5fa; --budget: #facc15;
+  --checkout: #4ade80; --guard: #f87171; --human: #cbd5e1;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+       font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+button, select { font: inherit; color: inherit; }
+.wrap { max-width: 1480px; margin: 0 auto; padding: 12px 16px 32px; }
+body.embed header h1, body.embed header .sub { display: none; }
+
+header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+header h1 { font-size: 18px; margin: 0; letter-spacing: -0.01em; }
+header .sub { color: var(--muted); }
+header .spacer { flex: 1; }
+.badge { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border-radius: 999px;
+         border: 1px solid var(--line); background: var(--panel); font-size: 12px; color: var(--muted); }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.dot.on { background: var(--ok); }
+
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+.panel h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted);
+            margin: 0 0 8px; font-weight: 600; }
+
+.controls { display: grid; gap: 10px; }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.row .label { font-size: 12px; color: var(--muted); width: 88px; flex: none; }
+.btn { border: 1px solid var(--line); background: var(--soft); border-radius: 8px; padding: 5px 12px; cursor: pointer; }
+.btn:hover:not(:disabled) { border-color: var(--accent); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.danger { color: var(--bad); }
+.btn.pulse { animation: glow 1.2s ease-in-out infinite; border-color: var(--accent); }
+.btn.active { outline: 2px solid var(--accent); outline-offset: 1px; }
+.switch { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid var(--line);
+          border-radius: 8px; cursor: pointer; user-select: none; }
+.switch input { accent-color: var(--ok); width: 16px; height: 16px; margin: 0; }
+.switch:has(input:not(:checked)) { border-color: var(--bad); color: var(--bad); }
+.switch.chaos:has(input:checked) { border-color: var(--warn); color: var(--warn); }
+.switch.chaos input { accent-color: var(--warn); }
+select { border: 1px solid var(--line); background: var(--soft); border-radius: 8px; padding: 5px 8px; }
+
+.story { margin: 12px 0; display: grid; gap: 8px; }
+.caption { font-size: 15px; }
+.caption b { font-weight: 600; }
+.banner { display: none; padding: 10px 14px; border-radius: 10px; font-weight: 600; border: 1px solid; }
+.banner.show { display: block; }
+.banner.ok { color: var(--ok); border-color: var(--ok); background: color-mix(in srgb, var(--ok) 10%, var(--panel)); }
+.banner.warn { color: var(--warn); border-color: var(--warn); background: color-mix(in srgb, var(--warn) 10%, var(--panel)); }
+.banner.bad { color: var(--bad); border-color: var(--bad); background: color-mix(in srgb, var(--bad) 10%, var(--panel)); }
+
+.main { display: grid; grid-template-columns: 230px minmax(0, 1fr) 380px; gap: 12px; }
+.bottom { display: grid; grid-template-columns: 1fr; gap: 12px; margin-top: 12px; }
+@media (max-width: 1150px) { .main { grid-template-columns: 1fr; } }
+
+.feed .item { padding: 8px 0; border-top: 1px solid var(--line); }
+.feed .item:first-of-type { border-top: 0; }
+.feed .name { font-weight: 600; }
+.feed .store { color: var(--muted); font-size: 12px; }
+.feed .price { font-family: var(--mono); font-size: 16px; }
+.feed .price.under { color: var(--ok); font-weight: 700; }
+.feed .old { text-decoration: line-through; color: var(--muted); font-size: 12px; margin-right: 6px; }
+.feed .item.flash { animation: flash 1.6s ease-out; }
+.goal { padding: 8px 10px; border-radius: 8px; background: var(--soft); margin-bottom: 10px; font-size: 13px; }
+
+.graph-head { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 4px; }
+.chip { font-size: 12px; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+.chip.on { color: var(--ok); border-color: var(--ok); }
+.chip.off { color: var(--bad); border-color: var(--bad); }
+svg.graph { width: 100%; height: auto; display: block; }
+svg.graph.crashed { filter: grayscale(1); opacity: 0.55; transition: all 0.6s; }
+.edge { fill: none; stroke: var(--line); stroke-width: 2; marker-end: url(#m-idle); transition: stroke 0.3s; }
+.edge.on { stroke: var(--accent); marker-end: url(#m-on); }
+.edge.hot { stroke: var(--bad); stroke-width: 3; marker-end: url(#m-hot); }
+#m-idle path { fill: var(--line); } #m-on path { fill: var(--accent); } #m-hot path { fill: var(--bad); }
+.token { fill: var(--accent); }
+.node { cursor: pointer; }
+.node rect { fill: var(--panel); stroke: var(--line); stroke-width: 1.5; transition: all 0.3s; }
+.node .t { font-weight: 600; font-size: 14px; fill: var(--ink); text-anchor: middle; }
+.node .s { font-size: 11px; fill: var(--muted); text-anchor: middle; }
+.node .n { font-size: 11px; font-weight: 700; fill: var(--c); }
+.node.active rect { stroke: var(--c); stroke-width: 3; animation: pulse 1s ease-in-out infinite; }
+.node.done rect { stroke: var(--c); stroke-width: 2; fill: color-mix(in srgb, var(--c) 13%, var(--panel)); }
+.node.restored rect { stroke: var(--c); stroke-dasharray: 5 4; fill: color-mix(in srgb, var(--c) 6%, var(--panel)); }
+.node.waiting rect { stroke: var(--warn); stroke-width: 3; animation: pulse 0.8s ease-in-out infinite; }
+.node.bad rect { stroke: var(--bad); stroke-width: 3; fill: color-mix(in srgb, var(--bad) 14%, var(--panel)); }
+.node.rejected rect { stroke: var(--bad); stroke-width: 3; }
+.node.selected rect { stroke-width: 3.5; }
+.node.selected .t { text-decoration: underline; }
+.loop { font-size: 12px; fill: var(--muted); text-anchor: end; }
+.loop.hot { fill: var(--bad); font-weight: 700; }
+.graph-foot { color: var(--muted); font-size: 13px; min-height: 20px; }
+.graph-foot.ok { color: var(--ok); }
+
+.messages { display: flex; flex-direction: column; min-height: 0; }
+.msglist { overflow-y: auto; max-height: 470px; display: flex; flex-direction: column; gap: 6px; padding-right: 4px; }
+.msg { display: grid; grid-template-columns: 82px 1fr; gap: 2px 8px; padding: 6px 8px; border-radius: 8px;
+       background: var(--soft); border-left: 3px solid var(--c); animation: slide 0.25s ease-out; }
+.msg .who { color: var(--c); font-weight: 600; font-size: 13px; }
+.msg .who small { display: block; color: var(--muted); font-weight: 400; font-size: 11px; }
+.msg .act { font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 0.04em; }
+.msg .say { grid-column: 2; }
+.msg .tok { color: var(--muted); font-size: 11px; margin-left: 6px; font-family: var(--mono); }
+.msg.code { background: color-mix(in srgb, var(--bad) 12%, var(--panel)); }
+.empty { color: var(--muted); font-style: italic; }
+
+.meters { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.meter .k { font-size: 12px; color: var(--muted); }
+.meter .v { font-size: 22px; font-weight: 700; font-family: var(--mono); }
+.meter .v.bad { color: var(--bad); }
+.meter .v.ok { color: var(--ok); }
+.bar { height: 6px; background: var(--soft); border-radius: 3px; overflow: hidden; margin-top: 4px; }
+.bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width 0.3s; }
+.bar i.over { background: var(--bad); }
+
+.cps { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.cp { border: 1px solid var(--line); background: var(--soft); border-radius: 8px; padding: 4px 8px; cursor: pointer;
+      font-size: 12px; text-align: left; }
+.cp:hover:not(:disabled) { border-color: var(--accent); }
+.cp b { font-family: var(--mono); margin-right: 4px; }
+.cp:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.tabs { display: flex; gap: 4px; margin-bottom: 8px; border-bottom: 1px solid var(--line); }
+.tab { border: 0; background: none; padding: 6px 12px; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent; }
+.tab.on { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+.pane { display: none; max-height: 420px; overflow: auto; }
+.pane.on { display: block; }
+pre { font-family: var(--mono); font-size: 12px; margin: 0; white-space: pre-wrap; word-break: break-word; }
+pre.box { background: var(--soft); border-radius: 8px; padding: 8px 10px; }
+.add { color: var(--ok); } .del { color: var(--bad); } .hunk { color: var(--muted); }
+details { margin: 6px 0; }
+summary { cursor: pointer; font-weight: 600; }
+.insp h3 { margin: 0 0 4px; font-size: 15px; }
+.insp .role { color: var(--muted); margin: 0 0 8px; }
+.insp h4 { margin: 12px 0 4px; font-size: 12px; text-transform: uppercase; color: var(--muted); letter-spacing: 0.05em; }
+
+.modal { position: fixed; inset: 0; background: rgb(0 0 0 / 0.45); display: none; place-items: center; padding: 16px; z-index: 10; }
+.modal.show { display: grid; }
+.card { background: var(--panel); border: 2px solid var(--warn); border-radius: 14px; padding: 20px 22px; max-width: 460px; width: 100%; }
+.card h3 { margin: 0 0 4px; }
+.card .what { font-size: 18px; margin: 12px 0; }
+.card .note { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+.card .row { justify-content: flex-end; }
+
+@keyframes pulse { 50% { stroke-opacity: 0.35; } }
+@keyframes glow { 50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 30%, transparent); } }
+@keyframes flash { 0% { background: color-mix(in srgb, var(--ok) 30%, transparent); } 100% { background: transparent; } }
+@keyframes slide { from { opacity: 0; transform: translateY(4px); } }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Autonomy Lab</h1>
+    <span class="sub">When agents start on their own</span>
+    <span class="spacer"></span>
+    <span class="badge" id="mode">mode: …</span>
+    <span class="badge"><span class="dot" id="conn"></span><span id="connText">connecting</span></span>
+    <button class="btn" id="theme" title="Switch theme">Theme: system</button>
+  </header>
+
+  <section class="panel controls">
+    <div class="row"><span class="label">Scenarios</span><span class="row" id="scenarios"></span></div>
+    <div class="row">
+      <span class="label">Guardrails</span>
+      <label class="switch"><input type="checkbox" id="g-owner" checked> One owner</label>
+      <label class="switch"><input type="checkbox" id="g-budget" checked> Budget &amp; stop</label>
+      <label class="switch"><input type="checkbox" id="g-approval" checked> Human approval</label>
+      <label class="switch chaos" title="The owner agent keeps re-checking prices forever"><input type="checkbox" id="g-chaos"> Chaos</label>
+      <select id="brain" title="Who makes the agents' decisions">
+        <option value="offline">Scripted (offline)</option><option value="claude-haiku">Claude · haiku</option><option value="claude-sonnet">Claude · sonnet</option>
+      </select>
+      <select id="speed" title="Pause between agent lines">
+        <option value="0.7">Stage pace</option><option value="0.3">Quick</option><option value="0">Instant</option>
+      </select>
+      <button class="btn primary" id="run">▶ Run</button>
+      <button class="btn danger" id="stop" disabled>■ Stop</button>
+      <button class="btn" id="drop" title="Drop the Sparx shoe to ₹849 in the store feed">↓ Drop price</button>
+    </div>
+    <div class="row">
+      <span class="label">Durable runs</span>
+      <span>Crash after</span>
+      <select id="crashNode"></select>
+      <button class="btn" id="crash">Crash</button>
+      <button class="btn" id="resume">Resume last run</button>
+      <span class="sub" style="color:var(--muted);font-size:12px">Rewind: click a checkpoint below once a run ends.</span>
+    </div>
+  </section>
+
+  <section class="story">
+    <div class="caption" id="caption">Pick a scenario. <b>Safe run</b> is the place to start.</div>
+    <div class="banner" id="banner"></div>
+  </section>
+
+  <section class="main">
+    <div class="panel feed">
+      <h2>The world: store feed</h2>
+      <div class="goal" id="goal"></div>
+      <div id="feed"></div>
+    </div>
+
+    <div class="panel">
+      <div class="graph-head"><h2 style="margin:0 8px 0 0">The agent team</h2><span id="chips"></span></div>
+      <svg class="graph" id="graph" viewBox="0 0 1000 370" role="img" aria-label="Agent graph"></svg>
+      <div class="graph-foot" id="foot">Click any agent to see what it was told, what it said and what it changed.</div>
+    </div>
+
+    <div class="panel messages">
+      <h2>Agent messages</h2>
+      <div class="msglist" id="msgs"><div class="empty">Nobody has said anything yet.</div></div>
+    </div>
+  </section>
+
+  <section class="bottom">
+    <div class="panel meters">
+      <div class="meter"><div class="k">Human inputs</div><div class="v" id="m-human">0</div></div>
+      <div class="meter"><div class="k">Agent turns</div><div class="v" id="m-turn">0</div><div class="bar"><i id="b-turn"></i></div></div>
+      <div class="meter"><div class="k">Tokens (est.)</div><div class="v" id="m-tok">0</div><div class="bar"><i id="b-tok"></i></div></div>
+      <div class="meter"><div class="k">Items in cart</div><div class="v" id="m-cart">0</div></div>
+      <div class="meter"><div class="k">Messages</div><div class="v" id="m-msg">0</div></div>
+    </div>
+
+    <div class="panel">
+      <h2>Checkpoints of the last run · click one to replay from there with the guardrails above</h2>
+      <div class="cps" id="cps"><span class="empty">Shown when a run ends.</span></div>
+    </div>
+
+    <div class="panel">
+      <div class="tabs">
+        <button class="tab on" data-pane="insp">Inspector</button>
+        <button class="tab" data-pane="diffs">State diffs</button>
+        <button class="tab" data-pane="console">Terminal</button>
+      </div>
+      <div class="pane on insp" id="insp"><span class="empty">Click an agent in the graph.</span></div>
+      <div class="pane" id="diffs"><span class="empty">Each step's change to the shared state appears here.</span></div>
+      <div class="pane" id="console"><pre class="box" id="consoleText"></pre></div>
+    </div>
+  </section>
+</div>
+
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div class="card">
+    <h3 id="modalTitle">Approval needed</h3>
+    <div class="what" id="modalWhat"></div>
+    <div class="note">The graph is paused and saved to disk. Nothing is bought until you answer.</div>
+    <div class="row">
+      <button class="btn" id="deny">Deny</button>
+      <button class="btn primary" id="approve">Approve</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
+const fmt = n => Number(n || 0).toLocaleString('en-IN');
+const store = {get: k => { try { return localStorage.getItem(k); } catch { return null; } },
+               set: (k, v) => { try { localStorage.setItem(k, v); } catch {} }};
+
+// ------------------------------------------------------------------ scenarios (same flags as run.py)
+
+const ALL_ON = {owner: true, budget: true, approval: true, chaos: false};
+const SCENARIOS = [
+  {label: 'Safe run', g: {}, cap: '<b>All guardrails on.</b> A price drop wakes the team. Three scouts check three stores at once, an evaluator picks, one agent buys, after you approve.'},
+  {label: 'Wait for a drop', g: {}, extra: ['--watch'], cap: '<b>Nobody types anything.</b> The watcher waits for the store feed to change. Click <b>↓ Drop price</b>, or run <code>python run.py --drop</code>.'},
+  {label: 'No owner', g: {owner: false}, cap: '<b>Guardrail 1 off.</b> Deal and Budget were both told purchases are their job. Watch the cart.'},
+  {label: 'Runaway loop', g: {budget: false, chaos: true}, cap: '<b>Guardrail 2 off, chaos on.</b> The owner keeps re-checking prices. With no budget, only LangGraph’s recursion limit stops it, and nobody decides.'},
+  {label: 'Loop + budget', g: {chaos: true}, cap: '<b>Same loop, budget on.</b> It stops at 6 turns and hands over to a human.'},
+  {label: 'No approval', g: {approval: false}, cap: '<b>Guardrail 3 off.</b> It buys, and nobody is asked.'},
+  {label: 'All off', g: {owner: false, budget: false, approval: false}, cap: '<b>All three guardrails off.</b>'},
+];
+
+function setSwitches(g) {
+  for (const k of ['owner', 'budget', 'approval', 'chaos']) $('#g-' + k).checked = g[k];
+}
+function switches() {
+  const g = {};
+  for (const k of ['owner', 'budget', 'approval', 'chaos']) g[k] = $('#g-' + k).checked;
+  return g;
+}
+function flagArgs(g = switches()) {
+  const a = [];
+  if (!g.owner && !g.budget && !g.approval) a.push('--unsafe');
+  else { if (!g.owner) a.push('--no-owner'); if (!g.budget) a.push('--no-budget'); if (!g.approval) a.push('--no-approval'); }
+  if (g.chaos) a.push('--chaos');
+  return a;
+}
+function guardsFromArgs(args) {
+  const has = f => args.includes(f), u = has('--unsafe');
+  return {owner: !(u || has('--no-owner')), budget: !(u || has('--no-budget')),
+          approval: !(u || has('--no-approval')), chaos: has('--chaos')};
+}
+function captionFor(args) {
+  const i = f => args.indexOf(f);
+  if (args.includes('--resume')) return '<b>Resume.</b> Carries on the last run from its last checkpoint. Agents that already finished don’t run again (dashed outline).';
+  if (i('--rewind') >= 0) return `<b>Rewind to checkpoint #${esc(args[i('--rewind') + 1])}.</b> Same event, same offers. Everything before this point is reused, not re-run.`;
+  if (i('--crash-after') >= 0) return `<b>Crash.</b> The process is killed right after <b>${esc(args[i('--crash-after') + 1])}</b>. The checkpoint is already on disk. Then press <b>Resume last run</b>.`;
+  if (args.includes('--watch')) return SCENARIOS[1].cap;
+  const g = guardsFromArgs(args);
+  const hit = SCENARIOS.find(s => !s.extra && ['owner', 'budget', 'approval', 'chaos'].every(k => ({...ALL_ON, ...s.g})[k] === g[k]));
+  if (hit) return hit.cap;
+  const off = ['owner', 'budget', 'approval'].filter(k => !g[k]);
+  return `<b>Custom run.</b> Guardrails off: ${off.join(', ') || 'none'}${g.chaos ? ', chaos on' : ''}.`;
+}
+
+// ------------------------------------------------------------------ graph
+
+const NW = 120, NH = 52;
+const TITLE = {drop: 'Price drop', watcher: 'Watcher', evaluator: 'Evaluator', deal: 'Deal', budget: 'Budget',
+               checkout: 'Checkout', escalate: 'Escalate'};
+const SUB = {drop: 'the trigger', watcher: 'saved goal', evaluator: 'picks the best', deal: 'buyer agent',
+             budget: 'buyer agent', checkout: 'places the order', escalate: 'asks a human'};
+const COLOR = {drop: 'human', watcher: 'watcher', evaluator: 'evaluator', deal: 'deal', budget: 'budget',
+               checkout: 'checkout', escalate: 'guard'};
+const ROLE = {
+  drop: 'Not an agent: a change in the world. Nobody typed a prompt.',
+  watcher: 'You are a Watcher agent. Decide if this event matches the saved goal.',
+  scout: 'You are a Scout agent. You check one store only and report its offer.',
+  evaluator: 'You are an Evaluator agent. Pick the best offer that meets the saved goal.',
+  deal: 'You are the Deal agent. You are responsible for buying good deals quickly.',
+  budget: 'You are the Budget agent. You are responsible for all purchases.',
+  checkout: 'Not a model: code. Asks a human (guardrail 3), then places a simulated order.',
+  escalate: 'Not a model: code. Runs when the budget is spent (guardrail 2).',
+};
+const BUYERS = ['deal', 'budget'];
+
+let S = {};          // the current run, as the page understands it
+let cfg = {}, feedItems = [], stores = [], P = {}, running = false, lastHistory = [];
+
+function layout() {
+  P = {drop: [12, 159], watcher: [172, 159], evaluator: [520, 159], deal: [700, 84], budget: [700, 234],
+       checkout: [868, 84], escalate: [868, 234]};
+  const n = stores.length, step = n > 1 ? Math.min(118, 300 / (n - 1)) : 0;
+  stores.forEach((s, i) => P['scout-' + s] = [346, 159 + (i - (n - 1) / 2) * step]);
+}
+const right = id => [P[id][0] + NW, P[id][1] + NH / 2];
+const left = id => [P[id][0], P[id][1] + NH / 2];
+function curve([x1, y1], [x2, y2]) {
+  const dx = (x2 - x1) / 2;
+  return `M${x1},${y1} C${x1 + dx},${y1} ${x2 - dx},${y2} ${x2},${y2}`;
+}
+function edgeList() {
+  const E = [['drop', 'watcher'], ...stores.map(s => ['watcher', 'scout-' + s]), ...stores.map(s => ['scout-' + s, 'evaluator']),
+             ['evaluator', 'deal'], ['deal', 'budget'], ['budget', 'deal'], ['deal', 'checkout'], ['budget', 'checkout'],
+             ['deal', 'escalate'], ['budget', 'escalate']];
+  return E.map(([a, b]) => {
+    let d;
+    if (a === 'deal' && b === 'budget') d = `M${P.deal[0] + 42},${P.deal[1] + NH} L${P.budget[0] + 42},${P.budget[1] - 2}`;
+    else if (a === 'budget' && b === 'deal') d = `M${P.budget[0] + 78},${P.budget[1]} L${P.deal[0] + 78},${P.deal[1] + NH + 2}`;
+    else d = curve(right(a), left(b));
+    return {id: a + '>' + b, a, b, d};
+  });
+}
+
+function drawGraph() {
+  layout();
+  const svg = $('#graph');
+  const marker = id => `<marker id="${id}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker>`;
+  let h = `<defs>${marker('m-idle')}${marker('m-on')}${marker('m-hot')}</defs>`;
+  for (const e of edgeList()) h += `<path class="edge" id="e-${e.id}" d="${e.d}"/>`;
+  h += `<text class="loop" id="loop" x="${P.deal[0] - 8}" y="${P.deal[1] + NH + 50}"></text>`;
+  for (const id of Object.keys(P)) {
+    const scout = id.startsWith('scout-');
+    const title = scout ? 'Scout' : TITLE[id], sub = scout ? id.slice(6) : SUB[id];
+    const [x, y] = P[id];
+    h += `<g class="node" data-id="${esc(id)}" style="--c: var(--${scout ? 'scout' : COLOR[id]})" transform="translate(${x},${y})" tabindex="0">
+      <rect width="${NW}" height="${NH}" rx="10"/>
+      <text class="t" x="${NW / 2}" y="22">${esc(title)}</text>
+      <text class="s" x="${NW / 2}" y="40">${esc(sub)}</text>
+      <text class="n" x="${NW - 8}" y="14" text-anchor="end"></text></g>`;
+  }
+  svg.innerHTML = h;
+  svg.querySelectorAll('.node').forEach(g => {
+    g.addEventListener('click', () => inspect(g.dataset.id));
+    g.addEventListener('keydown', ev => { if (ev.key === 'Enter') inspect(g.dataset.id); });
+  });
+}
+const nodeEl = id => document.querySelector(`.node[data-id="${CSS.escape(id)}"]`);
+function setNode(id, state, sub) {
+  const g = nodeEl(id);
+  if (!g) return;
+  g.classList.remove('active', 'done', 'restored', 'waiting', 'bad', 'rejected');
+  if (state) g.classList.add(state);
+  if (sub !== undefined) g.querySelector('.s').textContent = sub;
+  S.touched.add(id);
+}
+function setCount(id, n) { const g = nodeEl(id); if (g) g.querySelector('.n').textContent = n > 1 ? '×' + n : ''; }
+function flow(a, b, hot) {
+  const e = document.getElementById('e-' + a + '>' + b);
+  if (!e) return;
+  e.classList.add(hot ? 'hot' : 'on');
+  const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  dot.setAttribute('r', 5);
+  dot.setAttribute('class', 'token');
+  if (hot) dot.style.fill = 'var(--bad)';
+  const anim = document.createElementNS('http://www.w3.org/2000/svg', 'animateMotion');
+  anim.setAttribute('dur', '0.6s'); anim.setAttribute('path', e.getAttribute('d'));
+  anim.setAttribute('begin', 'indefinite'); anim.setAttribute('fill', 'freeze');
+  dot.appendChild(anim);
+  $('#graph').appendChild(dot);
+  try { anim.beginElement(); } catch {}
+  setTimeout(() => dot.remove(), 700);
+}
+
+// The order the team runs in. On resume or rewind, anything upstream of the first node that runs was
+// restored from a checkpoint, not run again: drawn with a dashed outline.
+function upstream(id) {
+  const scouts = stores.map(s => 'scout-' + s);
+  if (id === 'watcher') return ['drop'];
+  if (id.startsWith('scout-')) return ['drop', 'watcher'];
+  if (id === 'evaluator') return ['drop', 'watcher', ...scouts];
+  return ['drop', 'watcher', ...scouts, 'evaluator'];
+}
+function restoreUpstream(id) {
+  if (!S.restoring) return;
+  for (const u of upstream(id)) if (!S.touched.has(u)) setNode(u, 'restored', 'from checkpoint');
+  S.restoring = false;
+}
+
+function flowInto(id) {
+  if (id === 'watcher') flow('drop', 'watcher');
+  else if (id.startsWith('scout-')) flow('watcher', id);
+  else if (id === 'evaluator') stores.forEach(s => flow('scout-' + s, 'evaluator'));
+  else if (BUYERS.includes(id)) {
+    const p = S.prev;
+    if (!BUYERS.includes(p)) flow('evaluator', id);
+    else if (p !== id) flow(p, id, S.turn >= 4);
+  } else if (BUYERS.includes(S.prev)) flow(S.prev, id, id === 'escalate');
+  if (!id.startsWith('scout-')) S.prev = id;
+}
+
+// ------------------------------------------------------------------ run state
+
+function resetRun(args) {
+  S = {args, touched: new Set(), prev: null, turn: 0, tokens: 0, cart: 0, human: 0, msgs: 0,
+       runs: {}, calls: {}, updates: {}, toks: {}, diffs: [], offers: [], ended: null, flowedCheckout: false,
+       restoring: args.includes('--resume') || args.includes('--rewind'), selected: S.selected};
+  drawGraph();
+  $('#graph').classList.remove('crashed');
+  $('#msgs').innerHTML = '';
+  $('#diffs').innerHTML = '<span class="empty">Each step\'s change to the shared state appears here.</span>';
+  $('#consoleText').textContent = '';
+  $('#foot').textContent = 'Click any agent to see what it was told, what it said and what it changed.';
+  $('#foot').className = 'graph-foot';
+  $('#cps').innerHTML = '<span class="empty">Shown when the run ends.</span>';
+  $('#resume').classList.remove('pulse');
+  banner(null);
+  $('#caption').innerHTML = captionFor(args);
+  const g = args.includes('--resume') ? null : guardsFromArgs(args);
+  $('#chips').innerHTML = g
+    ? ['owner', 'budget', 'approval'].map(k => `<span class="chip ${g[k] ? 'on' : 'off'}">${k} ${g[k] ? '✓' : '✗'}</span>`).join(' ')
+      + (g.chaos ? ' <span class="chip off">chaos</span>' : '')
+    : '<span class="chip">guardrails: as the last run</span>';
+  if (args.includes('--watch')) setNode('watcher', 'active', 'watching the feed…');
+  meters();
+  if (S.selected) inspect(S.selected);
+}
+
+function meters() {
+  const g = S.args && !S.args.includes('--resume') ? guardsFromArgs(S.args) : ALL_ON;
+  $('#m-human').textContent = S.human || 0;
+  $('#m-turn').textContent = g.budget ? `${S.turn || 0} / ${cfg.max_turns}` : `${S.turn || 0}  (no limit)`;
+  $('#m-tok').textContent = g.budget ? `${fmt(S.tokens)} / ${fmt(cfg.max_tokens)}` : fmt(S.tokens);
+  $('#m-cart').textContent = S.cart || 0;
+  $('#m-cart').className = 'v' + (S.cart > 1 ? ' bad' : S.cart === 1 ? ' ok' : '');
+  $('#m-msg').textContent = S.msgs || 0;
+  const bar = (el, v, max) => { el.style.width = Math.min(100, 100 * v / max) + '%'; el.classList.toggle('over', v >= max); };
+  bar($('#b-turn'), S.turn || 0, cfg.max_turns || 6);
+  bar($('#b-tok'), S.tokens || 0, cfg.max_tokens || 5000);
+  const loop = $('#loop');
+  if (loop) {
+    const turns = (S.runs.deal || 0) + (S.runs.budget || 0);
+    loop.textContent = turns ? `${turns} buyer turn${turns > 1 ? 's' : ''}` : '';
+    loop.classList.toggle('hot', turns >= 4);
+  }
+}
+
+function banner(text, kind) {
+  const b = $('#banner');
+  b.className = 'banner' + (text ? ' show ' + kind : '');
+  b.textContent = text || '';
+}
+function outcomeKind(outcome) {
+  if (/approved by a human/.test(outcome) && S.cart <= 1) return 'ok';
+  if (/Nobody approved|Killed|Crashed/.test(outcome) || S.cart > 1) return 'bad';
+  return 'warn';
+}
+
+const AGENT_LABEL = {watcher: 'Watcher', evaluator: 'Evaluator', deal: 'Deal', budget: 'Budget', checkout: 'Checkout',
+                     guard: 'Guardrail', human: 'You', system: 'Checkpoint'};
+function addMsg(from, action, say, tok) {
+  const [agent, sub] = from.split(':');
+  const color = agent === 'system' ? 'muted' : agent;
+  const code = /^Rejected by code/.test(say || '');
+  const el = document.createElement('div');
+  el.className = 'msg' + (code ? ' code' : '');
+  el.style.setProperty('--c', `var(--${color})`);
+  el.innerHTML = `<div class="who">${esc(agent === 'scout' ? 'Scout' : AGENT_LABEL[agent] || agent)}${sub ? `<small>${esc(sub)}</small>` : ''}</div>
+    <div class="act">${esc(String(action || '').toUpperCase())}${tok ? `<span class="tok">${fmt(tok)} tok</span>` : ''}</div>
+    <div class="say">${esc(say)}</div>`;
+  const list = $('#msgs');
+  list.appendChild(el);
+  list.scrollTop = list.scrollHeight;
+  if (agent !== 'system' && agent !== 'human') S.msgs++;
+}
+
+// ------------------------------------------------------------------ trace events (output/<run>/e2e.log)
+
+function nodeId(agent, ctx) { return agent === 'scout' ? 'scout-' + ctx.store : agent; }
+
+function onTrace(kind, d) {
+  if (kind === 'trigger') {
+    const e = d.event || {};
+    setNode('drop', 'done', `₹${fmt(e.old_price)} → ₹${fmt(e.price)}`);
+    $('#drop').classList.remove('pulse');
+  } else if (kind === 'llm') {
+    const id = nodeId(d.agent, d.context || {});
+    restoreUpstream(id);
+    if (!nodeEl(id)?.classList.contains('done') || BUYERS.includes(id)) setNode(id, 'active');
+    (S.calls[id] ||= []).push(d);
+    const key = d.agent === 'scout' ? 'scout:' + d.context.store : d.agent;
+    (S.toks[key] ||= []).push(d.tokens);
+    if (S.selected === id) inspect(id);
+  } else if (kind === 'node') {
+    onNode(d.node, d.update || {});
+  } else if (kind === 'interrupt') {
+    const p = (d.proposal || [])[0] || {};
+    flowInto('checkout');
+    S.flowedCheckout = true;
+    setNode('checkout', 'waiting', 'waiting for you');
+    showModal(p);
+  } else if (kind === 'resume') {
+    S.human++;
+    hideModal();
+    addMsg('human', d.answer, d.answer === 'approve' ? 'Approved the purchase.' : 'Denied the purchase.');
+  } else if (kind === 'resume_from') {
+    S.restoring = false;
+    const done = (d.done || []).flatMap(n => n === 'scout' ? stores.map(s => 'scout-' + s) : [n]);
+    for (const n of ['drop', ...done]) setNode(n, 'restored', 'from checkpoint');
+    addMsg('system', 'resume', `Already done, not re-run: ${(d.done || []).join(', ') || 'nothing'}. Next: ${(d.next || []).join(', ')}.`);
+    S.prev = done.includes('evaluator') ? 'evaluator' : S.prev;
+  } else if (kind === 'llm_error') {
+    addMsg('guard', 'model error', d.error + ' (switching to scripted replies)');
+  } else if (kind === 'killed') {
+    S.ended = 'Killed by the framework. Nobody decided.';
+    BUYERS.forEach(b => S.touched.has(b) && setNode(b, 'bad'));
+    addMsg('guard', 'killed', `LangGraph recursion limit (${d.recursion_limit}) hit. The agents never decided.`);
+    banner(S.ended + ' The loop only stopped because the framework has a hard limit.', 'bad');
+  } else if (kind === 'crash') {
+    S.ended = `Crashed after ${d.after} (simulated).`;
+    addMsg('guard', 'crash', `Process killed right after '${d.after}'. The last checkpoint is already on disk.`);
+    $('#graph').classList.add('crashed');
+    banner(`The process died right after ${d.after}. Press “Resume last run”: finished agents won't run again.`, 'bad');
+    $('#resume').classList.add('pulse');
+  } else if (kind === 'run_end') {
+    if (!S.ended && d.outcome) { S.ended = d.outcome; banner(outcomeText(d.outcome), outcomeKind(d.outcome)); }
+  }
+  meters();
+}
+
+function outcomeText(o) {
+  if (S.cart > 1) return `${o}  ·  ${S.cart} items in the cart: both agents bought.`;
+  if (/Nobody approved/.test(o)) return o + '  Money moved and no human was asked.';
+  if (/Stopped by budget/.test(o)) return o + '  The loop was cut off by code, not by the agents.';
+  return o;
+}
+
+function onNode(name, u) {
+  const id = name === 'scout' ? 'scout-' + u.offers[0].store : name;
+  restoreUpstream(id);
+  if (!(id === 'checkout' && S.flowedCheckout)) flowInto(id);
+  S.runs[id] = (S.runs[id] || 0) + 1;
+  setCount(id, S.runs[id]);
+  (S.updates[id] ||= []).push(u);
+  if ('turn' in u) S.turn = u.turn;
+  if ('tokens' in u) S.tokens = u.tokens;
+  const log = u.log || [];
+  for (const m of log) addMsg(m.from, m.action, m.say, (S.toks[m.from] || []).shift());
+  const last = log[log.length - 1] || {};
+
+  if (id === 'watcher') setNode(id, 'done', last.action === 'trigger' ? 'woke the team' : last.action);
+  else if (id.startsWith('scout-')) {
+    const o = u.offers[0];
+    S.offers.push(o);
+    setNode(id, 'done', `₹${fmt(o.price)} · ${o.action === 'offer' ? 'offer' : 'over budget'}`);
+  } else if (id === 'evaluator') {
+    setNode(id, 'done', u.best ? `picked ₹${fmt(u.best.price)}` : 'nothing under budget');
+    if (S.offers.length > 1) {
+      const wall = Math.max(...S.offers.map(o => o.end)) - Math.min(...S.offers.map(o => o.start));
+      const serial = S.offers.reduce((t, o) => t + o.end - o.start, 0);
+      $('#foot').textContent = `${S.offers.length} scouts ran in parallel: ${wall.toFixed(1)}s, instead of ${serial.toFixed(1)}s one after another.`;
+      $('#foot').className = 'graph-foot ok';
+    }
+  } else if (BUYERS.includes(id)) {
+    const owner = u.owner || null;
+    const rejected = /^Rejected by code/.test(last.say || '');
+    setNode(id, rejected ? 'rejected' : 'done', owner ? `owner · ${last.action}` : last.action);
+    if (u.cart) {
+      S.cart += u.cart.length;
+      addMsg('guard', 'cart', `Cart now has ${S.cart} item${S.cart > 1 ? 's' : ''}.`);
+    }
+  } else if (id === 'checkout') {
+    if (u.cart) S.cart += u.cart.length;
+    const cancelled = /^Cancelled/.test(u.outcome || '');
+    setNode(id, /Nobody approved/.test(u.outcome) ? 'bad' : 'done', cancelled ? 'cancelled' : 'ordered (simulated)');
+    addMsg('checkout', cancelled ? 'cancelled' : 'ordered', u.outcome);
+  } else if (id === 'escalate') {
+    setNode(id, 'bad', `stopped at ${S.turn} turns`);
+    BUYERS.forEach(b => S.touched.has(b) && nodeEl(b).classList.add('bad'));
+    addMsg('guard', 'stopped', `Budget hit: ${S.turn} turns, ~${fmt(S.tokens)} tokens. Stopping and asking a human.`);
+  }
+  if (S.selected === id) inspect(id);
+}
+
+// ------------------------------------------------------------------ server events
+
+function onEvent(ev) {
+  switch (ev.type) {
+    case 'hello':
+      cfg = ev;
+      $('#mode').textContent = 'mode: ' + ev.mode + (ev.model ? ' · ' + ev.model : '');
+      if (!ev.claude) $('#brain').querySelectorAll('option[value^="claude"]').forEach(o => { o.disabled = true; o.textContent += ' (claude CLI not found)'; });
+      if (!store.get('lab-brain')) $('#brain').value = ev.mode === 'claude' ? 'claude-' + (ev.model || 'sonnet') : 'offline';
+      if (!$('#brain').value || $('#brain').selectedOptions[0].disabled) $('#brain').value = 'offline';
+      $('#goal').innerHTML = `Saved goal: <b>${esc(ev.goal.item)}</b> under <b>₹${fmt(ev.goal.max_price)}</b>.<br><span style="color:var(--muted)">Saved earlier. Nobody is typing during the demo.</span>`;
+      $('#crashNode').innerHTML = ev.crash_nodes.map(n => `<option${n === 'evaluator' ? ' selected' : ''}>${n}</option>`).join('');
+      if (ev.feed) onFeed(ev.feed);
+      if (!S.args) { stores = feedItems.map(i => i.store); S = {touched: new Set(), runs: {}}; drawGraph(); meters(); }
+      setRunning(ev.running);
+      if (!ev.running && !S.args) loadHistory();
+      break;
+    case 'feed':
+      onFeed(ev.items);
+      if (!S.args) { stores = feedItems.map(i => i.store); drawGraph(); meters(); }   // idle: the graph follows the feed
+      break;
+    case 'start':
+      if (ev.mode) $('#mode').textContent = 'mode: ' + ev.mode + (ev.model ? ' · ' + ev.model : '');
+      stores = feedItems.map(i => i.store);
+      resetRun(ev.args);
+      setRunning(true);
+      break;
+    case 'console': {
+      const c = $('#consoleText');
+      c.textContent += ev.text + '\n';
+      const pane = $('#console');
+      pane.scrollTop = pane.scrollHeight;
+      break;
+    }
+    case 'e2e': onTrace(ev.kind, ev.data); break;
+    case 'diff': onDiff(ev); break;
+    case 'answered': hideModal(); break;
+    case 'stopping': S.stopped = true; break;
+    case 'exit': onExit(ev); break;
+  }
+}
+
+function onExit(ev) {
+  setRunning(false);
+  hideModal();
+  const st = ev.summary && ev.summary.state;
+  if (st) {
+    S.turn = st.turn || 0; S.tokens = st.tokens || 0; S.cart = (st.cart || []).length;
+    meters();
+  }
+  if (S.stopped) banner('Stopped from the UI.', 'warn');
+  else if (ev.code !== 0 && !S.ended) {
+    banner(`run.py exited with code ${ev.code}. See the Terminal tab.`, 'bad');
+    showTab('console');
+  }
+  document.querySelectorAll('.node.active').forEach(g => g.classList.remove('active'));
+  loadHistory();
+}
+
+function onFeed(items) {
+  const before = Object.fromEntries(feedItems.map(i => [i.sku, i.price]));
+  feedItems = items || [];
+  const max = cfg.goal ? cfg.goal.max_price : 1000;
+  $('#feed').innerHTML = feedItems.map(i => {
+    const was = before[i.sku], dropped = was !== undefined && i.price < was;
+    return `<div class="item${dropped ? ' flash' : ''}"><div class="name">${esc(i.name)}</div>
+      <div class="store">${esc(i.store)}</div>
+      <div>${dropped ? `<span class="old">₹${fmt(was)}</span>` : ''}<span class="price${i.price <= max ? ' under' : ''}">₹${fmt(i.price)}</span></div></div>`;
+  }).join('');
+}
+
+function onDiff(ev) {
+  S.diffs.push(ev);
+  const pane = $('#diffs');
+  if (S.diffs.length === 1) pane.innerHTML = '';
+  pane.insertAdjacentHTML('beforeend', diffHtml(ev, true));
+  if (S.selected) inspect(S.selected);
+}
+function diffHtml(d, open) {
+  const lines = d.body.split('\n').filter(l => !l.startsWith('---') && !l.startsWith('+++')).map(l => {
+    const c = l.startsWith('@@') ? 'hunk' : l[0] === '+' ? 'add' : l[0] === '-' ? 'del' : '';
+    return `<span class="${c}">${esc(l)}</span>`;
+  }).join('\n');
+  return `<details${open ? ' open' : ''}><summary>#${d.seq} after ${esc(d.name)}</summary><pre class="box">${lines}</pre></details>`;
+}
+
+// ------------------------------------------------------------------ inspector
+
+function inspect(id) {
+  S.selected = id;
+  document.querySelectorAll('.node').forEach(g => g.classList.toggle('selected', g.dataset.id === id));
+  const base = id.startsWith('scout-') ? 'scout' : id;
+  const title = base === 'scout' ? `Scout · ${id.slice(6)}` : TITLE[id];
+  let h = `<h3>${esc(title)}</h3><p class="role">${esc(ROLE[base])}</p>`;
+  const calls = (S.calls || {})[id] || [];
+  h += `<h4>LLM calls (${calls.length})</h4>`;
+  h += calls.length ? calls.map((c, i) => `<details${i === calls.length - 1 ? ' open' : ''}>
+      <summary>Call ${i + 1} · ${esc(c.reply.action)} · ${fmt(c.tokens)} tok · ${esc(c.mode)}</summary>
+      <div style="margin:6px 0 2px;color:var(--muted)">What it was told</div><pre class="box">${esc(JSON.stringify(c.context, null, 2))}</pre>
+      <div style="margin:6px 0 2px;color:var(--muted)">What it said</div><pre class="box">${esc(JSON.stringify(c.reply, null, 2))}</pre>
+    </details>`).join('') : '<div class="empty">None in this run.</div>';
+  const diffs = (S.diffs || []).filter(d => d.name.split(' + ').includes(base));
+  h += `<h4>What it changed in the shared state (${diffs.length})</h4>`;
+  h += diffs.length ? diffs.map((d, i) => diffHtml(d, i === diffs.length - 1)).join('') : '<div class="empty">Nothing yet.</div>';
+  $('#insp').innerHTML = h;
+}
+
+// ------------------------------------------------------------------ approval
+
+function showModal(p) {
+  $('#modalWhat').innerHTML = `Buy <b>${esc(p.quantity)} × ${esc(p.item)}</b> for <b>₹${fmt(p.price)}</b> from ${esc(p.store)}?<br>
+    <span style="font-size:14px;color:var(--muted)">Proposed by the ${esc(p.proposed_by)} agent.</span>`;
+  $('#modal').classList.add('show');
+  $('#approve').focus();
+}
+function hideModal() { $('#modal').classList.remove('show'); }
+async function answer(a) {
+  $('#approve').disabled = $('#deny').disabled = true;
+  await post('/answer', {answer: a});
+  $('#approve').disabled = $('#deny').disabled = false;
+}
+
+// ------------------------------------------------------------------ checkpoints and rewind
+
+async function loadHistory() {
+  try {
+    const r = await (await fetch('/history')).json();
+    lastHistory = r.rows || [];
+    if (!lastHistory.length) { $('#cps').innerHTML = `<span class="empty">${esc(r.error || 'No checkpoints yet.')}</span>`; return; }
+    $('#cps').innerHTML = lastHistory.map(c =>
+      `<button class="cp" data-n="${c.n}" title="turn ${c.turn} · ${fmt(c.tokens)} tokens · owner ${c.owner || '—'} · cart ${c.cart}"${running ? ' disabled' : ''}>
+        <b>#${c.n}</b>before ${esc(c.next.join(', ') || 'the end')}</button>`).join('');
+    document.querySelectorAll('.cp').forEach(b => b.addEventListener('click', () => start(['--rewind', b.dataset.n, ...flagArgs()])));
+  } catch { $('#cps').innerHTML = '<span class="empty">Could not load checkpoints.</span>'; }
+}
+
+// ------------------------------------------------------------------ controls
+
+async function post(path, body) {
+  const r = await fetch(path, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body || {})});
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) banner(j.error || `Request failed (${r.status})`, 'bad');
+  return j;
+}
+function start(args) { return post('/run', {args, delay: Number($('#speed').value), brain: $('#brain').value}); }
+
+function setRunning(on) {
+  running = on;
+  document.querySelectorAll('#scenarios .btn, #run, #crash, #resume, .cp').forEach(b => b.disabled = on);
+  $('#stop').disabled = !on;
+  $('#drop').classList.toggle('pulse', on && S.args && S.args.includes('--watch') && !S.touched.has('drop'));
+}
+
+function showTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.pane === name));
+  document.querySelectorAll('.pane').forEach(p => p.classList.toggle('on', p.id === name));
+}
+
+$('#scenarios').innerHTML = SCENARIOS.map((s, i) => `<button class="btn" data-i="${i}">${esc(s.label)}</button>`).join('');
+document.querySelectorAll('#scenarios .btn').forEach(b => b.addEventListener('click', () => {
+  const s = SCENARIOS[b.dataset.i], g = {...ALL_ON, ...s.g};
+  setSwitches(g);
+  start([...flagArgs(g), ...(s.extra || [])]);
+}));
+$('#run').addEventListener('click', () => start(flagArgs()));
+$('#stop').addEventListener('click', () => post('/stop'));
+$('#drop').addEventListener('click', () => { $('#drop').classList.remove('pulse'); post('/drop'); });
+$('#crash').addEventListener('click', () => start([...flagArgs(), '--crash-after', $('#crashNode').value]));
+$('#resume').addEventListener('click', () => start(['--resume']));
+$('#approve').addEventListener('click', () => answer('approve'));
+$('#deny').addEventListener('click', () => answer('deny'));
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => showTab(t.dataset.pane)));
+
+const brain = store.get('lab-brain');
+if (brain) $('#brain').value = brain;
+$('#brain').addEventListener('change', () => store.set('lab-brain', $('#brain').value));
+const speed = store.get('lab-speed');
+if (speed !== null) $('#speed').value = speed;
+$('#speed').addEventListener('change', () => store.set('lab-speed', $('#speed').value));
+
+const THEMES = ['system', 'light', 'dark'];
+function applyTheme(t) {
+  if (t === 'system') document.documentElement.removeAttribute('data-theme');
+  else document.documentElement.dataset.theme = t;
+  $('#theme').textContent = 'Theme: ' + t;
+}
+// Inside talk.html the page is embedded: ?embed=1&theme=dark hides the title and follows the talk's theme.
+const QS = new URLSearchParams(location.search);
+if (QS.has('embed')) document.body.classList.add('embed');
+let theme = QS.get('theme') || store.get('lab-theme') || 'system';
+applyTheme(theme);
+$('#theme').addEventListener('click', () => {
+  theme = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length];
+  store.set('lab-theme', theme);
+  applyTheme(theme);
+});
+
+const es = new EventSource('/events');
+es.onopen = () => { $('#conn').classList.add('on'); $('#connText').textContent = 'connected'; };
+es.onerror = () => { $('#conn').classList.remove('on'); $('#connText').textContent = 'reconnecting…'; };
+es.onmessage = e => onEvent(JSON.parse(e.data));
+</script>
+</body>
+</html>

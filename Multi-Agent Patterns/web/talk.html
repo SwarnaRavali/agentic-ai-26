@@ -1,0 +1,1043 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Multi-Agent Patterns</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* The session in four sections: 1 patterns (simulated) · 2 LangGraph in code · 3 CrewAI in code · 4 the live demo.
+   Dark by default (projectors); the Theme button switches to light or follows the system. PageUp/PageDown (or a clicker) moves between sections. */
+:root{
+  --bg:#0d1220; --panel:#151c2f; --panel2:#1b2339; --line:#29344f; --fg:#e9ecf4; --muted:#8c96ae;
+  --accent:#f5b544; --agent:#7aa7ff; --critic:#c39bff; --ok:#5fd09c; --bad:#ff6f6f; --data:#5cc9c4; --event:#e889c9; --sup:#5fd09c;
+  --lg:#7aa7ff; --cr:#ff9f5a;
+  --user:#8c96ae; --infra:#7a87a6; --ink:#1a1405; --pkt:#10131c;
+  --code-bg:#080c16; --code-fg:#cfd6e6; --code-ln:#4b556d; --code-c:#6f7a94; --code-s:#a8d672; --code-k:#c39bff; --code-d:#d8b27a; --code-f:#7aa7ff;
+  --f-display:"Bricolage Grotesque",ui-sans-serif,system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+/* light theme: the Theme button (or System, when your OS is set to light) */
+:root[data-theme="light"]{--bg:#f4f6fa; --panel:#ffffff; --panel2:#eef1f7; --line:#d6dce8; --fg:#141a2a; --muted:#5a6478;
+  --accent:#b86e00; --agent:#2f5fd0; --critic:#7a45c9; --ok:#13804a; --bad:#cf2f3a; --data:#0a7f78; --event:#b2337f; --sup:#13804a;
+  --lg:#2f5fd0; --cr:#c2541a; --user:#5f6b80; --infra:#6b7891; --ink:#ffffff; --pkt:#ffffff;
+  --code-bg:#f7f9fd; --code-fg:#1e2433; --code-ln:#a3acbf; --code-c:#6b7487; --code-s:#2d7a2f; --code-k:#7a45c9; --code-d:#8f5f0c; --code-f:#2f5fd0;
+  color-scheme:light;}
+@media (prefers-color-scheme:light){:root[data-theme="system"]{--bg:#f4f6fa; --panel:#ffffff; --panel2:#eef1f7; --line:#d6dce8; --fg:#141a2a; --muted:#5a6478;
+  --accent:#b86e00; --agent:#2f5fd0; --critic:#7a45c9; --ok:#13804a; --bad:#cf2f3a; --data:#0a7f78; --event:#b2337f; --sup:#13804a;
+  --lg:#2f5fd0; --cr:#c2541a; --user:#5f6b80; --infra:#6b7891; --ink:#ffffff; --pkt:#ffffff;
+  --code-bg:#f7f9fd; --code-fg:#1e2433; --code-ln:#a3acbf; --code-c:#6b7487; --code-s:#2d7a2f; --code-k:#7a45c9; --code-d:#8f5f0c; --code-f:#2f5fd0;
+  color-scheme:light;}}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{background:var(--bg);margin:0}
+body{color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.5}
+button{font:inherit;color:inherit}
+.wrap{max-width:1280px;margin:0 auto;padding:18px 16px 40px}
+body.wide .wrap{max-width:1640px}
+section[data-sec]{display:flex;flex-direction:column;gap:14px}
+
+/* top bar */
+.topbar{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(6px);border-bottom:1px solid var(--line)}
+.topbar .in{max-width:1280px;margin:0 auto;padding:10px 16px;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.brand{font-family:var(--f-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);white-space:nowrap}
+.brand b{color:var(--fg);font-weight:600}
+.secnav{display:flex;gap:4px;flex-wrap:wrap}
+.secnav button{font-weight:600;font-size:13px;color:var(--muted);background:transparent;border:1px solid transparent;border-radius:8px;padding:6px 12px;cursor:pointer}
+.secnav button b{font-family:var(--f-mono);font-size:10.5px;margin-right:6px;color:var(--muted)}
+.secnav button[aria-current="true"]{color:var(--fg);border-color:var(--line);background:var(--panel)}
+.secnav button[aria-current="true"] b{color:var(--accent)}
+
+/* shared */
+.kicker{font-family:var(--f-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+.h2{font-family:var(--f-display);font-weight:800;font-size:clamp(26px,4.6vw,40px);line-height:1.05;margin:4px 0 8px;letter-spacing:-.01em;text-wrap:balance}
+.lede{color:var(--muted);margin:0;max-width:74ch}
+.lede b{color:var(--fg)}
+.sechead{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}
+.btn{font-weight:600;font-size:13px;background:var(--fg);color:var(--bg);border:1px solid var(--fg);border-radius:9px;padding:8px 14px;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--fg);border-color:var(--line)}
+.btn:disabled{opacity:.45;cursor:default}
+.btn:focus-visible,.pk:focus-visible,.secnav button:focus-visible,.tstep:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.ctrl{display:flex;gap:8px;flex-wrap:wrap}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px;min-width:0}
+.ph{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:8px}
+.ph h3{margin:0;font-family:var(--f-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.ph small{font-family:var(--f-mono);font-size:10.5px;color:var(--muted)}
+code,.mono{font-family:var(--f-mono);font-size:.88em}
+.good{color:var(--ok)} .bad{color:var(--bad)} .warn{color:var(--accent)}
+
+/* ---------------------------------------------------------------- 1 · pattern simulator */
+.pick{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+@media (max-width:900px){.pick{grid-template-columns:1fr 1fr}}
+.pk{text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:9px 12px;cursor:pointer;display:flex;flex-direction:column;gap:1px;min-width:0}
+.pk b{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.08em;color:var(--muted)}
+.pk span{font-weight:600;font-size:14px}
+.pk small{color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pk[aria-pressed="true"]{background:var(--accent);border-color:var(--accent)}
+.pk[aria-pressed="true"] *{color:var(--ink)}
+.player{display:flex;flex-wrap:wrap;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 10px}
+.player .sep{width:1px;height:24px;background:var(--line);margin:0 4px}
+.player .plabel{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.player .seg{display:inline-flex}
+.player .seg button{font-weight:600;font-size:12.5px;background:transparent;color:var(--fg);border:1px solid var(--line);padding:6px 10px;cursor:pointer;margin-left:-1px}
+.player .seg button:first-child{border-radius:8px 0 0 8px;margin-left:0} .player .seg button:last-child{border-radius:0 8px 8px 0}
+.player .seg button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--ink)}
+.player .auto{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;cursor:pointer}
+.player .auto input{accent-color:var(--accent);width:16px;height:16px;margin:0}
+.player .keys{margin-left:auto;font-family:var(--f-mono);font-size:10.5px;color:var(--muted)}
+.player .btn.paused{background:var(--accent);border-color:var(--accent);color:var(--ink)}
+.sim{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:14px;align-items:start}
+@media (max-width:980px){.sim{grid-template-columns:1fr}}
+.stage{background:var(--panel);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.caption{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line);min-height:46px}
+.caption .n{font-family:var(--f-mono);font-size:11px;font-weight:600;color:var(--ink);background:var(--accent);border-radius:6px;padding:2px 7px}
+.caption .tx{font-weight:600;font-size:15px}
+.caption .tx.swap{animation:cap .35s ease-out}
+@keyframes cap{from{opacity:0;transform:translateY(4px)}}
+svg.g{display:block;width:100%;height:auto}
+.notebar{padding:9px 14px;border-top:1px solid var(--line);min-height:44px;font-size:14px;color:var(--muted)}
+.notebar.bad{color:var(--bad);background:color-mix(in srgb,var(--bad) 8%,var(--panel))}
+.notebar.warn{color:var(--accent);background:color-mix(in srgb,var(--accent) 7%,var(--panel))}
+.notebar.good{color:var(--ok);background:color-mix(in srgb,var(--ok) 7%,var(--panel))}
+.legend{display:flex;gap:6px 12px;flex-wrap:wrap;padding:8px 14px;border-top:1px solid var(--line);min-height:34px;font-family:var(--f-mono);font-size:10.5px;color:var(--muted);align-items:center}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:3px;background:var(--c);margin-right:5px;vertical-align:-1px}
+.legend em{font-style:normal;color:var(--fg);margin-right:3px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--line)}
+.stat{padding:8px 12px;display:flex;flex-direction:column}
+.stat+.stat{border-left:1px solid var(--line)}
+.stat span{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.stat strong{font-family:var(--f-mono);font-size:18px}
+.stat.hot strong{color:var(--bad)}
+.side{display:flex;flex-direction:column;gap:14px;min-width:0}
+#ctxs{display:flex;flex-direction:column;gap:7px;max-height:420px;overflow:auto}
+.cw{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:7px 10px;display:flex;flex-direction:column;gap:5px;transition:border-color .3s}
+.cw.flash{border-color:var(--accent)}
+.cw .top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.cw .who{font-weight:600;font-size:13px;display:flex;align-items:center;gap:6px}
+.cw .who i{width:8px;height:8px;border-radius:50%;background:var(--c)}
+.cw .tk{font-family:var(--f-mono);font-size:11px;color:var(--muted)}
+.cw .bar{height:5px;background:var(--bg);border-radius:3px;overflow:hidden}
+.cw .bar i{display:block;height:100%;width:0;background:var(--data);transition:width .4s}
+.cw .bar i.over{background:var(--bad)}
+.cw .chips{display:flex;flex-wrap:wrap;gap:4px}
+.chip{font-family:var(--f-mono);font-size:10.5px;border-radius:6px;padding:1px 6px;border:1px solid var(--line);color:var(--fg);background:var(--bg);animation:pop .3s ease-out}
+.chip.own{border-color:color-mix(in srgb,var(--accent) 60%,var(--line));color:var(--accent)}
+.chip.bad{border-color:var(--bad);color:var(--bad)}
+.chip.ok{border-color:var(--ok);color:var(--ok)}
+.chip.dim{opacity:.5}
+@keyframes pop{from{opacity:0;transform:scale(.85)}}
+#log{list-style:none;margin:0;padding:0;font-family:var(--f-mono);font-size:11.5px;line-height:1.55;max-height:200px;overflow:auto;display:flex;flex-direction:column;gap:3px}
+#log .t{color:var(--muted);margin-right:6px}
+#log .ty{display:inline-block;font-size:9.5px;font-weight:600;border-radius:4px;padding:0 4px;margin-right:5px;color:var(--pkt);background:var(--c)}
+#log .who{color:var(--c,var(--agent));font-weight:600}
+#log li.sys{color:var(--muted)} #log li.bad{color:var(--bad)} #log li.good{color:var(--ok)} #log li.warn{color:var(--accent)}
+.out{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 16px;display:flex;flex-direction:column;gap:8px}
+.out .big{font-family:var(--f-display);font-size:21px;font-weight:600;margin:0}
+.out p{margin:0}
+.pcard{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+@media (max-width:980px){.pcard{grid-template-columns:1fr 1fr}}
+.pc{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:13.5px}
+.pc b{display:block;font-family:var(--f-mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:3px}
+.pc.lg b{color:var(--lg)} .pc.cr b{color:var(--cr)} .pc.bad b{color:var(--bad)}
+.pc code{color:var(--data);font-size:12px;white-space:pre-wrap}
+/* graph */
+.edge{stroke:var(--line);stroke-width:1.6;fill:none;transition:stroke .35s}
+.edge.draw{stroke-dasharray:1;stroke-dashoffset:1;animation:draw .55s ease-out forwards}
+.edge.peer{stroke:color-mix(in srgb,var(--data) 40%,var(--line))}
+.edge.hot{stroke:var(--bad);stroke-width:2.4}
+@keyframes draw{to{stroke-dashoffset:0}}
+@keyframes fadein{to{opacity:1}}
+.node{transition:opacity .4s}
+.node .core{fill:color-mix(in srgb,var(--c) 20%,var(--panel));stroke:var(--c);stroke-width:1.6;transition:fill .3s,stroke .3s}
+.node .ring{fill:none;stroke:var(--c);opacity:0}
+.node .glyph{fill:var(--fg);font:600 10px var(--f-mono)}
+.node .lbl{fill:var(--fg);font:600 10.5px var(--f-body)}
+.node .nst{fill:var(--muted);font:500 8.5px var(--f-mono);letter-spacing:.04em;text-transform:uppercase}
+.node.dim{opacity:.35}
+.node.active .core{fill:color-mix(in srgb,var(--c) 45%,var(--panel))}
+.node.active .ring{animation:pulse 1.2s ease-out infinite}
+.node.active .nst{fill:var(--c)}
+.node.done .core{stroke:var(--ok)} .node.done .nst{fill:var(--ok)}
+.node.bad .core{stroke:var(--bad);fill:color-mix(in srgb,var(--bad) 30%,var(--panel))}
+.node.bad .ring{stroke:var(--bad);animation:pulse .7s ease-out infinite}
+.node.bad .nst{fill:var(--bad)}
+.node.wait .core{stroke:var(--accent)} .node.wait .ring{stroke:var(--accent);animation:pulse .9s ease-out infinite} .node.wait .nst{fill:var(--accent)}
+.node.spawn .inner{animation:popn .55s cubic-bezier(.2,1.6,.4,1)}
+.inner{transform-box:fill-box;transform-origin:center}
+.float{animation:bob 3.2s ease-in-out infinite}
+@keyframes bob{50%{transform:translateY(-5px)}}
+@keyframes popn{from{transform:scale(0)}}
+@keyframes pulse{0%{opacity:.9;r:18;stroke-width:2}100%{opacity:0;r:31;stroke-width:1}}
+.pkt rect{fill:var(--c)} .pkt text{fill:var(--pkt);font:700 8.5px var(--f-mono)}
+.bub rect{fill:var(--bg);stroke:var(--line)} .bub text{fill:var(--fg);font:500 9.5px var(--f-body)}
+.bub.bad rect{stroke:var(--bad)} .bub.bad text{fill:var(--bad)}
+.bub.good rect{stroke:var(--ok)} .bub.good text{fill:var(--ok)}
+.bub.warn rect{stroke:var(--accent)} .bub.warn text{fill:var(--accent)}
+.bub{animation:fadein .2s forwards}
+.wm{fill:var(--muted);font:600 9.5px var(--f-mono);letter-spacing:.12em}
+.phase{fill:var(--accent);font:700 10px var(--f-mono);letter-spacing:.1em}
+
+/* ---------------------------------------------------------------- 2 + 3 · code tours */
+.tour{display:grid;grid-template-columns:230px minmax(0,1.35fr) minmax(0,1fr);gap:14px;align-items:start}
+@media (max-width:1100px){.tour{grid-template-columns:1fr}}
+.tsteps{display:flex;flex-direction:column;gap:5px}
+.tstep{text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 10px;cursor:pointer;display:grid;grid-template-columns:22px 1fr;gap:2px 6px;align-items:baseline}
+.tstep b{font-family:var(--f-mono);font-size:11px;color:var(--muted)}
+.tstep span{font-weight:600;font-size:13.5px;line-height:1.3}
+.tstep small{grid-column:2;color:var(--muted);font-size:11.5px}
+.tstep[aria-current="true"]{border-color:var(--c,var(--accent));background:color-mix(in srgb,var(--c,var(--accent)) 12%,var(--panel))}
+.tstep[aria-current="true"] b{color:var(--c,var(--accent))}
+.codebox{background:var(--code-bg);border:1px solid var(--line);border-radius:14px;overflow:hidden;min-width:0}
+.codebox .file{display:flex;justify-content:space-between;gap:8px;padding:8px 12px;border-bottom:1px solid var(--line);font-family:var(--f-mono);font-size:11.5px;color:var(--muted)}
+.codebox .file b{color:var(--fg);font-weight:600}
+.codebox pre{margin:0;padding:10px 0;font:12.5px/1.6 var(--f-mono);color:var(--code-fg);overflow:auto;max-height:560px}
+.codebox .ln{display:block;padding:0 12px 0 0;white-space:pre}
+.codebox .ln::before{content:attr(data-n);display:inline-block;width:42px;text-align:right;margin-right:14px;color:var(--code-ln)}
+.codebox .ln.hl{background:color-mix(in srgb,var(--c,var(--accent)) 14%,transparent);box-shadow:inset 3px 0 var(--c,var(--accent))}
+.code .c{color:var(--code-c);font-style:italic} .code .s{color:var(--code-s)} .code .k{color:var(--code-k)} .code .d{color:var(--code-d)} .code .f{color:var(--code-f)}
+.explain{display:flex;flex-direction:column;gap:12px}
+.explain h3{font-family:var(--f-display);font-size:22px;margin:0;line-height:1.15}
+.explain p{margin:0;color:var(--muted)}
+.explain p b,.explain li b{color:var(--fg)}
+.explain ul{margin:0;padding-left:18px;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+.explain .rt{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.explain .rt svg{display:block;width:100%;height:auto;background:var(--panel2);border-radius:8px}
+.mini .e{stroke:var(--line);stroke-width:1.4;fill:none}
+.mini .e.hot{stroke:var(--accent);stroke-width:2}
+.mini .e.d{stroke-dasharray:3 3}
+.mini .n{fill:color-mix(in srgb,var(--c) 22%,var(--panel));stroke:var(--c);stroke-width:1.4}
+.mini .n.hot{stroke:var(--accent);stroke-width:2.6;fill:color-mix(in srgb,var(--accent) 22%,var(--panel))}
+.mini text{fill:var(--fg);font:600 7.5px var(--f-mono);text-anchor:middle}
+.mini .dot{fill:var(--c)}
+table.cmp{width:100%;border-collapse:collapse;font-size:13.5px}
+.cmp th,.cmp td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.cmp th{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.cmp td code{color:var(--data)}
+.cmp .n{font-family:var(--f-mono);text-align:right}
+
+/* ---------------------------------------------------------------- 2 and 3 · explained (tabs above each code tour) */
+.cx{--c:var(--cr);background:var(--panel);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.cx nav{display:flex;flex-wrap:wrap;gap:4px;padding:8px;border-bottom:1px solid var(--line);background:var(--panel2)}
+.cx nav button{font-weight:600;font-size:13px;color:var(--muted);background:transparent;border:1px solid transparent;border-radius:8px;padding:6px 12px;cursor:pointer}
+.cx nav button b{font-family:var(--f-mono);font-size:10.5px;margin-right:6px}
+.cx nav button[aria-selected="true"]{color:var(--fg);border-color:var(--c);background:color-mix(in srgb,var(--c) 12%,var(--panel))}
+.cx nav button[aria-selected="true"] b{color:var(--c)}
+.cx nav button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.cx .pane{padding:16px 18px 18px;display:flex;flex-direction:column;gap:14px}
+.cx h3{font-family:var(--f-display);font-size:22px;margin:0;line-height:1.15}
+.cx p{margin:0;color:var(--muted);max-width:92ch}
+.cx p b,.cx li b,.cx td b{color:var(--fg)}
+.cx ul{margin:0;padding-left:18px;color:var(--muted);display:flex;flex-direction:column;gap:5px}
+.cx code{font-family:var(--f-mono);font-size:.9em;color:var(--data)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:10px}
+.cards.four{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media (max-width:1100px){.cards.four{grid-template-columns:1fr 1fr}}
+@media (max-width:640px){.cards.four{grid-template-columns:1fr}}
+.card{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:14px;color:var(--muted)}
+.card b.t{color:var(--fg);font-size:15px;display:flex;gap:8px;align-items:baseline;margin-bottom:6px}
+.card b.t i{font-style:normal;font-family:var(--f-mono);font-size:11px;color:var(--c)}
+.card.weak{--c:var(--bad)} .card.good{--c:var(--ok)} .card.lg{--c:var(--lg)}
+.card .ev{font-size:12.5px;border-top:1px dashed var(--line);padding-top:6px;margin-top:8px}
+.card .ev b{color:var(--c);font-weight:600}
+.loop svg{display:block;width:100%;height:auto;background:var(--panel2);border-radius:12px;border:1px solid var(--line)}
+.loop .bx{fill:var(--panel);stroke:var(--line);stroke-width:1.5}
+.loop .bx.cr{stroke:var(--cr);fill:color-mix(in srgb,var(--cr) 12%,var(--panel))}
+.loop .bx.ai{stroke:var(--agent);fill:color-mix(in srgb,var(--agent) 14%,var(--panel))}
+.loop .bx.lg{stroke:var(--lg);fill:color-mix(in srgb,var(--lg) 12%,var(--panel))}
+.loop .bx.ev{stroke:var(--event);fill:color-mix(in srgb,var(--event) 12%,var(--panel))}
+.loop .bx.ok{stroke:var(--ok);fill:color-mix(in srgb,var(--ok) 12%,var(--panel))}
+.loop .bx.bad{stroke:var(--critic);fill:color-mix(in srgb,var(--critic) 12%,var(--panel))}
+.loop text{fill:var(--fg);font:600 13px var(--f-body);text-anchor:middle}
+.loop text.s{fill:var(--muted);font:400 11px var(--f-mono)}
+.loop text.l{font:600 11px var(--f-mono);fill:var(--muted)}
+.loop .ar{stroke:var(--muted);stroke-width:1.6;fill:none;marker-end:url(#cxa)}
+.loop .ar.d{stroke-dasharray:5 4}
+#lgx .loop .ar{marker-end:url(#lga)}   /* each diagram has its own arrowhead: the other section is hidden */
+.loop .ar.r{stroke:var(--critic)} .loop .ar.e{stroke:var(--event)} .loop .ar.g{stroke:var(--lg)} .loop .ar.t{stroke:var(--agent)} .loop .ar.n{stroke:var(--cr)}
+.loop .steps{counter-reset:st;list-style:none;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:6px 18px}
+.loop .steps li{counter-increment:st;padding-left:28px;position:relative}
+.loop .steps li::before{content:counter(st);position:absolute;left:0;top:1px;width:20px;height:20px;border-radius:50%;background:color-mix(in srgb,var(--c) 20%,var(--panel));color:var(--c);font:600 11px/20px var(--f-mono);text-align:center}
+.cx table.cmp td{color:var(--muted)}
+
+/* ---------------------------------------------------------------- 4 · live demo */
+.demo{border:1px solid var(--line);border-radius:16px;overflow:hidden;background:var(--bg)}
+.demo iframe{display:block;width:100%;height:1200px;border:0;background:var(--bg)}   /* the demo reports its height: the page scrolls, not the frame */
+.demo .off{padding:22px;display:flex;flex-direction:column;gap:10px;align-items:flex-start}
+.demo .off p{margin:0;color:var(--muted)}
+pre.term{margin:0;background:var(--code-bg);border:1px solid var(--line);border-radius:12px;padding:12px 16px;font:13px/1.7 var(--f-mono);color:var(--code-fg);overflow-x:auto}
+pre.term .c{color:var(--code-c)} pre.term .p{color:var(--ok)}
+.opts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+@media (max-width:980px){.opts{grid-template-columns:1fr 1fr}}
+.opt{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:13px;color:var(--muted)}
+.opt b{display:block;color:var(--fg);font-size:14px;margin-bottom:2px}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;animation-iteration-count:1!important}}
+</style>
+</head>
+<body>
+<div class="topbar"><div class="in">
+  <span class="brand"><b>Multi-Agent Patterns in LangGraph &amp; CrewAI</b></span>
+  <div class="ctrl" style="align-items:center"><nav class="secnav" id="secnav" aria-label="Sections"></nav>
+  <button class="btn ghost" id="theme" title="Dark · Light · System">Theme: Dark</button></div>
+</div></div>
+
+<div class="wrap">
+
+<!-- ============================================================ 1 · PATTERNS -->
+<section data-sec="patterns" data-title="Patterns">
+  <div class="sechead">
+    <div>
+      <span class="kicker">1 · Coordination patterns, simulated</span>
+      <h2 class="h2">How agents hand work to each other</h2>
+      <p class="lede">Eight ways agents hand work to each other, with no particular task: roles, messages, and in the right-hand panel <b>what each agent gets to see</b>. What an agent sees decides what it can get right.</p>
+    </div>
+  </div>
+  <nav class="pick" id="pick" aria-label="Pattern"></nav>
+  <div class="player" role="toolbar" aria-label="Simulation controls">
+    <button class="btn ghost" id="replay" title="Restart this pattern (R)">⟲ Restart</button>
+    <button class="btn" id="play" title="Pause or play (Space)">❚❚ Pause</button>
+    <button class="btn ghost" id="stepb" title="Play to the next step, then pause (N)">Step ⏭</button>
+    <span class="sep"></span>
+    <span class="plabel">Speed</span>
+    <span class="seg" id="speeds" role="group" aria-label="Speed"></span>
+    <span class="sep"></span>
+    <label class="auto"><input type="checkbox" id="auto"> Auto-play all</label>
+    <span class="keys">Space pause · N step · R restart · ←/→ pattern · +/− speed</span>
+  </div>
+  <div class="sim">
+    <div class="side" style="gap:14px">
+      <section class="stage">
+        <div class="caption"><span class="n" id="capN">00</span><span class="tx" id="capT">Pick a pattern</span></div>
+        <svg class="g" id="g" viewBox="0 0 400 300" role="img" aria-label="Simulated agent graph">
+          <defs><pattern id="dots" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r=".9" style="fill:var(--line)"/></pattern></defs>
+          <rect width="400" height="300" fill="url(#dots)"/>
+          <text class="wm" x="12" y="18" id="wm"></text><text class="phase" x="388" y="18" text-anchor="end" id="phase"></text>
+          <g id="edges"></g><g id="nodes"></g><g id="fx"></g>
+        </svg>
+        <div class="notebar" id="noteBar"></div>
+        <div class="legend" id="legend"></div>
+        <div class="stats">
+          <div class="stat"><span>Agents</span><strong id="sA">0</strong></div>
+          <div class="stat"><span>Messages</span><strong id="sM">0</strong></div>
+          <div class="stat" id="sTb"><span>Tokens in context</span><strong id="sT">0</strong></div>
+          <div class="stat"><span>Human steps</span><strong id="sH">0</strong></div>
+        </div>
+      </section>
+      <section class="out" id="out" hidden></section>
+    </div>
+    <div class="side">
+      <section class="panel">
+        <div class="ph"><h3>Context windows · what each agent sees</h3><small id="ctxNote">tokens</small></div>
+        <div id="ctxs"></div>
+      </section>
+      <section class="panel">
+        <div class="ph"><h3>Transcript</h3><small id="mCount">0 messages</small></div>
+        <ul id="log"></ul>
+      </section>
+    </div>
+  </div>
+  <div class="pcard" id="pcard"></div>
+  <p class="lede" style="margin-top:4px">Next: the same patterns in code, on one real task: <b>“Black running shoes, size 9, under ₹1,000”</b> &nbsp;<button class="btn ghost" onclick="show('langgraph')">LangGraph in code →</button></p>
+</section>
+
+<!-- ============================================================ 2 · LANGGRAPH -->
+<section data-sec="langgraph" data-title="LangGraph" hidden>
+  <div>
+    <span class="kicker">2 · LangGraph, in code</span>
+    <h2 class="h2">A graph you draw: state, nodes, edges</h2>
+    <p class="lede">Every excerpt is the real code in <b>patterns/</b> and <b>lab/</b>. LangGraph’s model: one <b>state</b> object, <b>nodes</b> that read it and return updates, and <b>edges</b> that decide what runs next. Control flow is yours, explicitly.</p>
+  </div>
+  <div class="cx" id="lgx" style="--c:var(--lg)">
+    <nav role="tablist" aria-label="LangGraph explained">
+      <button role="tab" data-p="what"><b>A</b>What it is</button>
+      <button role="tab" data-p="how"><b>B</b>How a run works</button>
+      <button role="tab" data-p="good"><b>C</b>Strengths</button>
+      <button role="tab" data-p="weak"><b>D</b>Weaknesses</button>
+      <button role="tab" data-p="tips"><b>E</b>Gotchas and fixes</button>
+    </nav>
+
+    <div class="pane" data-p="what" role="tabpanel">
+      <h3>A library for agents as state machines</h3>
+      <p><b>LangGraph</b> is an open-source, low-level orchestration library from the LangChain team, for Python and JavaScript. You describe your system as a <b>graph</b>: one shared <b>state</b>, <b>nodes</b> that read it and return updates, and <b>edges</b> that decide what runs next. It doesn’t write prompts or define agents for you, and it doesn’t need LangChain. The version in this repo is <code>langgraph 1.x</code>.</p>
+      <div class="cards four">
+        <div class="card"><b class="t"><i>MEMORY</i>State</b>A <code>TypedDict</code> (or pydantic model). Each key can have a <b>reducer</b>: <code>Annotated[list, operator.add]</code> appends, a plain key is overwritten.</div>
+        <div class="card"><b class="t"><i>WORK</i>Node</b>Any Python function: <code>state → update</code>. It can call a model, a tool, an API, or just do arithmetic. Only the keys it returns change.</div>
+        <div class="card"><b class="t"><i>FLOW</i>Edges</b><code>add_edge</code> (always next), <code>add_conditional_edges</code> (a function picks), <code>Send</code> (start N copies with their own payload). Cycles are allowed.</div>
+        <div class="card"><b class="t"><i>DURABILITY</i>Checkpointer</b>Saves the state after every step, per <code>thread_id</code>: resume after a crash, pause for a human with <code>interrupt()</code>, browse history and rewind.</div>
+      </div>
+      <p>Around those four: <b>subgraphs</b> (a compiled graph is a node), <b>streaming</b> of updates, values and tokens, <b>Command</b> (update state and jump in one return), a long-term <b>store</b>, and prebuilt agent loops when you don’t want to draw one. LangChain also sells a hosted platform and LangSmith tracing around it; neither is required.</p>
+    </div>
+
+    <div class="pane loop" data-p="how" role="tabpanel" hidden>
+      <h3>What happens after <code>graph.invoke()</code></h3>
+      <svg viewBox="0 64 960 244" role="img" aria-label="How a LangGraph run works: invoke, then supersteps where triggered nodes run in parallel, reducers merge their updates, a checkpoint is saved and edges pick the next nodes, until END or an interrupt">
+  <defs><marker id="lga" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"/></marker></defs>
+  <rect class="bx" x="14" y="92" width="118" height="62" rx="10"/><text x="73" y="118">graph.invoke()</text><text class="s" x="73" y="138">input + thread_id</text>
+  <rect class="bx lg" x="156" y="80" width="170" height="86" rx="10"/><text x="241" y="104">Superstep</text><text class="s" x="241" y="124">every triggered node</text><text class="s" x="241" y="140">runs, in parallel</text><text class="s" x="241" y="156">returns an update</text>
+  <rect class="bx lg" x="350" y="92" width="140" height="62" rx="10"/><text x="420" y="118">Reducers merge</text><text class="s" x="420" y="138">add · overwrite</text>
+  <rect class="bx ok" x="514" y="92" width="130" height="62" rx="10"/><text x="579" y="118">Checkpoint</text><text class="s" x="579" y="138">saved every step</text>
+  <rect class="bx lg" x="668" y="92" width="140" height="62" rx="10"/><text x="738" y="118">Edges route</text><text class="s" x="738" y="138">edge · router · Send</text>
+  <rect class="bx" x="832" y="92" width="114" height="62" rx="10"/><text x="889" y="118">END</text><text class="s" x="889" y="138">final state</text>
+  <rect class="bx ev" x="420" y="206" width="210" height="62" rx="10"/><text x="525" y="229">interrupt()</text><text class="s" x="525" y="248">pause · wait for a human</text><text class="s" x="525" y="262">resume: Command(resume=…)</text>
+  <path class="ar" d="M132 123 H152"/><path class="ar" d="M326 123 H346"/><path class="ar" d="M490 123 H510"/><path class="ar" d="M644 123 H664"/><path class="ar" d="M808 123 H828"/>
+  <path class="ar e" d="M300 166 V237 H416"/><text class="l" x="308" y="196" style="text-anchor:start;fill:var(--event)">a node asks</text>
+  <path class="ar e d" d="M579 206 V158"/><text class="l" x="587" y="190" style="text-anchor:start;fill:var(--event)">state saved</text>
+  <path class="ar g" d="M738 154 V292 H222 V170"/><text class="l" x="480" y="286" style="fill:var(--lg)">next nodes: another superstep (stops at recursion_limit)</text>
+</svg>
+      <ol class="steps">
+        <li><b>Compile once.</b> <code>builder.compile(checkpointer=…)</code> checks the graph and returns a runnable. <code>invoke()</code> takes the input and a <code>thread_id</code>.</li>
+        <li><b>Run in supersteps.</b> Every node whose inputs changed runs; nodes in the same step run in parallel. That’s how <code>Send</code> fans out.</li>
+        <li><b>Nodes return updates, not state.</b> Reducers merge them. Two parallel nodes writing a plain key is an error, by design.</li>
+        <li><b>Checkpoint every step.</b> With a checkpointer the whole state is saved per thread: resume after a crash, list the history, rewind.</li>
+        <li><b>Edges pick what runs next.</b> A fixed edge, a router function, or <code>Send(node, payload)</code> for each item. Back to step 2.</li>
+        <li><b>Stop or pause.</b> <code>END</code> finishes. <code>interrupt()</code> pauses and saves; <code>Command(resume=…)</code> continues. <code>recursion_limit</code> stops runaway loops.</li>
+      </ol>
+      <p>The idea to keep: <b>you own the loop</b>. Nothing runs that isn’t an edge, and a node is just a function, so the model is called only where you put a call.</p>
+    </div>
+
+    <div class="pane" data-p="good" role="tabpanel" hidden>
+      <h3>Strengths: what the control buys you</h3>
+      <div class="cards">
+        <div class="card good"><b class="t"><i>01</i>Exact control flow</b>Every branch, loop and join is an edge you drew, and the shape can be decided at run time with <code>Send</code>. <div class="ev"><b>Here:</b> the L1 planner reads the query and decides at run time which workers to start.</div></div>
+        <div class="card good"><b class="t"><i>02</i>Plain code where code is enough</b>Filtering by price doesn’t need a model. Only the judgment calls cost tokens and seconds. <div class="ev"><b>Here:</b> L0 makes one model call: search, filter and pick are plain Python, the model only writes the confirmation.</div></div>
+        <div class="card good"><b class="t"><i>03</i>Durable execution</b>A checkpoint after every step: survive a crash, resume a thread tomorrow, browse the history, rewind and fork. <div class="ev"><b>Here:</b> the guardrails lab crashes, resumes and rewinds from <code>SqliteSaver</code> with <code>get_state_history</code>.</div></div>
+        <div class="card good"><b class="t"><i>04</i>Human in the loop, anywhere</b><code>interrupt()</code> inside any node pauses and persists; the answer can come hours later, from another process. <div class="ev"><b>Here:</b> the approval guardrail in <code>lab/guards.py</code> is one line.</div></div>
+        <div class="card good"><b class="t"><i>05</i>Safe parallelism</b>Reducers say how parallel updates merge, so fan-out and fan-in are deterministic, not a race. <div class="ev"><b>Here:</b> L2’s three scouts append to <code>offers</code> through <code>operator.add</code>.</div></div>
+        <div class="card good"><b class="t"><i>06</i>No hidden prompts</b>Every prompt is one you wrote; stream updates, state or tokens as they happen. <div class="ev"><b>Here:</b> the Run log shows each LangGraph call’s context: exactly the dict the node built.</div></div>
+      </div>
+    </div>
+
+    <div class="pane" data-p="weak" role="tabpanel" hidden>
+      <h3>Weaknesses: what you pay for the control</h3>
+      <div class="cards">
+        <div class="card weak"><b class="t"><i>01</i>More code, more decisions</b>A state schema, nodes, edges and reducers before anything runs, and you decide every one of them. <div class="ev"><b>Here:</b> the L2 graph is 154 lines: state, nodes, routers and edges all spelled out.</div></div>
+        <div class="card weak"><b class="t"><i>02</i>Steep concepts</b>Supersteps, channels, reducers, <code>Send</code> vs <code>Command</code>, threads vs store. It’s easy to misread when, and how often, a node runs.</div>
+        <div class="card weak"><b class="t"><i>03</i>Batteries not included</b>No roles, typed retries, memory or delegation out of the box. Validation, retry with feedback and critics are yours to build. <div class="ev"><b>Here:</b> the critic loop is two conditional edges plus a <code>rejected</code> list in state that you maintain.</div></div>
+        <div class="card weak"><b class="t"><i>04</i>Wiring bugs show up at run time</b>A missing edge means a node never runs; two parallel writers to a plain key raise an error; a loop without an exit hits <code>recursion_limit</code>. <div class="ev"><b>Here:</b> <code>lab/runner.py</code> sets <code>recursion_limit=24</code> as the last line of defence.</div></div>
+        <div class="card weak"><b class="t"><i>05</i>Resume reruns the node</b>After <code>interrupt()</code>, resuming runs the whole node again from its first line, so anything before the interrupt happens twice unless it’s idempotent.</div>
+        <div class="card weak"><b class="t"><i>06</i>Checkpoints have a cost</b>Every step writes the full state: storage grows, everything in state must serialize, and changing the schema can break old threads. <div class="ev"><b>Here:</b> demo runs grew <code>output/checkpoints.sqlite</code> to 27 MB.</div></div>
+      </div>
+      <p>Debugging is smoothest with LangSmith, LangChain’s paid tracing; without it you add your own (this repo writes its own Run log). The trade: you get <b>control and durability</b>, and you pay in <b>code and concepts</b>.</p>
+    </div>
+
+    <div class="pane" data-p="tips" role="tabpanel" hidden>
+      <h3>Gotchas and fixes</h3>
+      <table class="cmp">
+        <thead><tr><th>You see…</th><th>Because…</th><th>Fix</th></tr></thead>
+        <tbody>
+          <tr><td>A node never runs</td><td>No edge leads to it</td><td>Every node needs an incoming edge. Draw it: <code>graph.get_graph().draw_mermaid()</code></td></tr>
+          <tr><td><code>InvalidUpdateError</code> at a fan-in</td><td>Two parallel nodes wrote the same plain key</td><td>Give the key a reducer: <code>Annotated[list, operator.add]</code></td></tr>
+          <tr><td><code>GraphRecursionError</code></td><td>A cycle with no exit, or a limit set too low</td><td>Count turns in state and route to <code>END</code>; set <code>recursion_limit</code> in the config</td></tr>
+          <tr><td>An email sent twice after approval</td><td>Resume reruns the node that called <code>interrupt()</code></td><td>Do side effects after the interrupt, in their own node, or make them idempotent</td></tr>
+          <tr><td>The run forgot everything</td><td>No checkpointer, or a new <code>thread_id</code></td><td><code>compile(checkpointer=…)</code> and reuse <code>{"configurable": {"thread_id": …}}</code></td></tr>
+          <tr><td>A change to state didn’t stick</td><td>The node mutated <code>state</code> instead of returning an update</td><td>Return a dict with only the keys you changed</td></tr>
+        </tbody>
+      </table>
+      <p>In this repo: <b>patterns/</b> has the four graphs from the live demo; <b>lab/</b> has the guardrails (owner, budget, approval) with crash, resume and rewind on <code>SqliteSaver</code>.</p>
+    </div>
+  </div>
+  <div><span class="kicker">The code: the same four patterns in patterns/ and lab/</span></div>
+  <div class="tour" data-tour="langgraph" style="--c:var(--lg)"></div>
+</section>
+
+<!-- ============================================================ 3 · CREWAI -->
+<section data-sec="crewai" data-title="CrewAI" hidden>
+  <div>
+    <span class="kicker">3 · CrewAI, in code</span>
+    <h2 class="h2">A team you staff: agents, tasks, a crew</h2>
+    <p class="lede">The same four patterns, built in <b>crews/</b>. CrewAI’s model: <b>agents</b> with roles, <b>tasks</b> with expected outputs, a <b>crew</b> that runs them, and <b>Flows</b> for events. You describe the work; CrewAI runs the loop.</p>
+  </div>
+  <div class="cx" id="cx">
+    <nav role="tablist" aria-label="CrewAI explained">
+      <button role="tab" data-p="what"><b>A</b>What it is</button>
+      <button role="tab" data-p="how"><b>B</b>How a run works</button>
+      <button role="tab" data-p="good"><b>C</b>Where it beats LangGraph</button>
+      <button role="tab" data-p="weak"><b>D</b>Weaknesses</button>
+      <button role="tab" data-p="pick"><b>E</b>Which one, when</button>
+    </nav>
+
+    <div class="pane" data-p="what" role="tabpanel">
+      <h3>A framework for teams of role-playing agents</h3>
+      <p><b>CrewAI</b> is an open-source Python framework for multi-agent systems. You describe <b>who</b> does the work (agents with a role, goal and backstory) and <b>what</b> needs doing (tasks with an expected output); CrewAI writes the prompts, runs each agent’s think → act loop, and passes results between them. It is its own framework, not built on LangChain. The version in this repo is <code>crewai==1.15.28</code>.</p>
+      <div class="cards four">
+        <div class="card"><b class="t"><i>WHO</i>Agent</b>A role, a goal, a backstory, an <code>llm</code> and optional <code>tools</code>. That text becomes the agent’s system prompt.</div>
+        <div class="card"><b class="t"><i>WHAT</i>Task</b>A description, an <code>expected_output</code>, the agent that does it. Optionally typed (<code>output_pydantic</code>), checked (<code>guardrail</code>) and run in parallel (<code>async_execution</code>).</div>
+        <div class="card"><b class="t"><i>HOW</i>Crew + Process</b>Runs the tasks: <code>sequential</code> (in order, each output is the next one’s context) or <code>hierarchical</code> (a manager agent delegates).</div>
+        <div class="card"><b class="t"><i>WHEN</i>Flow</b>The deterministic layer: plain Python methods wired with <code>@start</code>, <code>@listen</code>, <code>@router</code>, sharing a pydantic state. Flows call crews where judgment is needed.</div>
+      </div>
+      <p>Around those four: <b>tools</b> (any function, or the <code>crewai-tools</code> package), <b>memory</b> and <b>knowledge</b> (retrieval over past runs and your documents), <b>delegation</b> between agents, <b>checkpoints</b>, and a CLI that scaffolds projects with <code>agents.yaml</code> and <code>tasks.yaml</code>.</p>
+    </div>
+
+    <div class="pane loop" data-p="how" role="tabpanel" hidden>
+      <h3>What happens after <code>crew.kickoff()</code></h3>
+      <svg viewBox="0 0 960 310" role="img" aria-label="How a CrewAI run works: kickoff, then for each task an agent loop of prompt, model, tools, final answer, validation and guardrail, then the output becomes the next task's context">
+  <defs><marker id="cxa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"/></marker></defs>
+  <rect class="bx" x="14" y="92" width="112" height="62" rx="10"/><text x="70" y="118">crew.kickoff()</text><text class="s" x="70" y="138">inputs={query}</text>
+  <rect class="bx cr" x="150" y="92" width="112" height="62" rx="10"/><text x="206" y="118">Next task</text><text class="s" x="206" y="138">by the Process</text>
+  <rect class="bx cr" x="286" y="80" width="196" height="86" rx="10"/><text x="384" y="104">Prompt built</text><text class="s" x="384" y="124">role · goal · backstory</text><text class="s" x="384" y="140">+ task + expected_output</text><text class="s" x="384" y="156">+ context outputs</text>
+  <rect class="bx ai" x="506" y="92" width="100" height="62" rx="10"/><text x="556" y="118">LLM turn</text><text class="s" x="556" y="138">≤ max_iter</text>
+  <rect class="bx ai" x="504" y="206" width="104" height="54" rx="10"/><text x="556" y="229">Tool call</text><text class="s" x="556" y="247">observation</text>
+  <rect class="bx" x="630" y="92" width="124" height="62" rx="10"/><text x="692" y="118">Final answer</text><text class="s" x="692" y="138">→ output_pydantic</text>
+  <rect class="bx bad" x="778" y="92" width="168" height="62" rx="10"/><text x="862" y="118">Guardrail</text><text class="s" x="862" y="138">(ok, value | why)</text>
+  <rect class="bx ok" x="778" y="206" width="168" height="54" rx="10"/><text x="862" y="229">TaskOutput</text><text class="s" x="862" y="247">→ next task's context</text>
+  <path class="ar" d="M126 123 H146"/><path class="ar" d="M262 123 H282"/><path class="ar" d="M482 123 H502"/><path class="ar" d="M606 123 H626"/><path class="ar" d="M754 123 H774"/>
+  <path class="ar t" d="M542 154 V202"/><path class="ar t" d="M570 206 V158"/><text class="l" x="580" y="186" style="text-anchor:start">tools?</text>
+  <path class="ar r" d="M862 92 C862 30 556 30 556 88"/><text class="l" x="709" y="40" style="fill:var(--critic)">fail: retry the agent with the "why"  (guardrail_max_retries)</text>
+  <path class="ar" d="M862 154 V202"/><text class="l" x="870" y="184" style="text-anchor:start">pass</text>
+  <path class="ar n" d="M862 260 V290 H206 V158"/><text class="l" x="430" y="284" style="fill:var(--cr)">more tasks: loop · none left: CrewOutput</text>
+</svg>
+      <ol class="steps">
+        <li><b>Inputs fill the placeholders.</b> <code>{query}</code> in agent and task text is replaced by <code>kickoff(inputs=…)</code>.</li>
+        <li><b>The process picks the next task.</b> Sequential: the next in the list. Hierarchical: the manager chooses who does what.</li>
+        <li><b>CrewAI builds the prompt.</b> Role, goal and backstory, then the task, its expected output, and the outputs of the tasks in its <code>context</code>.</li>
+        <li><b>The agent loops.</b> The model thinks; if it calls a tool, the result comes back as an observation, until it gives a final answer or hits <code>max_iter</code>.</li>
+        <li><b>The answer is checked.</b> Parsed into <code>output_pydantic</code>; then the guardrail. If it fails, the same agent runs again with the reason.</li>
+        <li><b>The output moves on.</b> It becomes a <code>TaskOutput</code>, the context for later tasks. The last one is the <code>CrewOutput</code>.</li>
+      </ol>
+      <p>The key difference from LangGraph: <b>the loop is inside the framework</b>. You configure it; you don’t draw it. That’s why each step in this repo’s crews is a model call: the unit of work is an agent turn.</p>
+    </div>
+
+    <div class="pane" data-p="good" role="tabpanel" hidden>
+      <h3>Where CrewAI beats LangGraph</h3>
+      <div class="cards">
+        <div class="card good"><b class="t"><i>01</i>Less code to a working team</b>No state schema, no edges, no reducers. An agent and a task are a few lines of mostly English. <div class="ev"><b>Here:</b> the L2 crew has no State class, no edges and no routing functions.</div></div>
+        <div class="card good"><b class="t"><i>02</i>The critic loop is built in</b><code>guardrail=</code> plus <code>guardrail_max_retries</code> gives you retry-with-feedback. In LangGraph that’s two conditional edges and a counter in state. <div class="ev"><b>Here:</b> L2 rejects the fake seller and retries in one argument.</div></div>
+        <div class="card good"><b class="t"><i>03</i>Typed hand-offs by default</b><code>output_pydantic</code> validates every task’s answer before the next agent sees it. A bad answer is caught at the boundary, not three steps later.</div>
+        <div class="card good"><b class="t"><i>04</i>Roles read like the org chart</b>Product people can read and edit <code>agents.yaml</code> and <code>tasks.yaml</code>. The design conversation is “who should check the seller?”, not “which edge?”.</div>
+        <div class="card good"><b class="t"><i>05</i>Batteries included</b>Delegation between agents, memory, knowledge sources, a tools package, planning, training and testing commands: things you assemble yourself around LangGraph.</div>
+        <div class="card good"><b class="t"><i>06</i>Two layers, clearly split</b>Flows for the deterministic, event-driven part; crews for the parts that need judgment. <div class="ev"><b>Here:</b> L3 is a Flow (watch → router) that calls a crew only when the price drops.</div></div>
+      </div>
+    </div>
+
+    <div class="pane" data-p="weak" role="tabpanel" hidden>
+      <h3>Weaknesses: what you trade for the convenience</h3>
+      <div class="cards">
+        <div class="card weak"><b class="t"><i>01</i>Every step costs a model call</b>The unit of work is an agent turn, so even a fixed step (“filter by price”) goes through the model. More tokens, more latency, more places to go wrong. <div class="ev"><b>Measured here:</b> L0 is 3 calls vs 1 in LangGraph; with Claude haiku L1 took 44 s vs 12 s.</div></div>
+        <div class="card weak"><b class="t"><i>02</i>Prompts you didn’t write</b>CrewAI generates the system prompt from role, goal and backstory, plus its own instructions. Hard to see, hard to tune, and backstory text costs tokens every turn. <div class="ev"><b>Here:</b> the Run log shows the full transcript CrewAI sent, much longer than the task.</div></div>
+        <div class="card weak"><b class="t"><i>03</i>Control flow is coarse</b>Topology is fixed when the crew is built: a plan can shape tasks but can’t add a worker. Loops, branches and joins beyond the built-ins mean dropping to Flows or plain Python. <div class="ev"><b>Here:</b> LangGraph’s L1 planner picks its workers at run time; the crew can’t.</div></div>
+        <div class="card weak"><b class="t"><i>04</i>Hierarchical is fragile</b>The manager needs a tool-calling model, adds its own turns, and can re-delegate or loop. Many teams fall back to sequential plus guardrails. <div class="ev"><b>Here:</b> our tool-less Claude bridge can’t drive a manager, so the crews stay sequential.</div></div>
+        <div class="card weak"><b class="t"><i>05</i>State and recovery are lighter</b>No reducers for parallel writers, and checkpoint/resume/fork is younger than LangGraph’s step-level persistence, <code>interrupt()</code> and time travel. Human input is mostly <code>human_input=True</code> or a Flow decorator.</div>
+        <div class="card weak"><b class="t"><i>06</i>Moving fast, opinionated defaults</b>Frequent releases and API changes, console panels on by default, anonymous telemetry on by default. <div class="ev"><b>Here:</b> we silence the console, filter deprecation warnings, and set <code>OTEL_SDK_DISABLED</code> and <code>CREWAI_TELEMETRY_OPT_OUT</code> in <code>crews/__init__.py</code>.</div></div>
+      </div>
+      <p>LangGraph has its own costs: more code, you design every edge and state key, and a steeper start. The trade is <b>convenience and conventions</b> (CrewAI) against <b>control and durability</b> (LangGraph).</p>
+    </div>
+
+    <div class="pane" data-p="pick" role="tabpanel" hidden>
+      <h3>Which one, when</h3>
+      <table class="cmp">
+        <thead><tr><th>If you need…</th><th>Pick</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td>A working prototype this week, the work maps to roles (research, review, write)</td><td><b>CrewAI</b></td><td>Agents and tasks in English, typed outputs and retries for free</td></tr>
+          <tr><td>Exact control of every branch, loop and join</td><td><b>LangGraph</b></td><td>You draw the graph; nothing runs that isn’t an edge</td></tr>
+          <tr><td>Cheap, fast steps mixed with a few model calls</td><td><b>LangGraph</b></td><td>Nodes can be plain code; only the judgment calls hit the model</td></tr>
+          <tr><td>Long-running runs, crash recovery, a human approving mid-run</td><td><b>LangGraph</b></td><td>Checkpoint every step, <code>interrupt()</code>, resume and rewind</td></tr>
+          <tr><td>A critic that sends work back with feedback</td><td>Either</td><td>One argument in CrewAI; two edges in LangGraph</td></tr>
+          <tr><td>Event-driven: something in the world starts the run</td><td>Either</td><td>CrewAI Flow (<code>@start</code>/<code>@router</code>) or your code calling <code>graph.invoke()</code></td></tr>
+          <tr><td>Non-engineers editing who does what</td><td><b>CrewAI</b></td><td><code>agents.yaml</code> and <code>tasks.yaml</code> read like a job description</td></tr>
+        </tbody>
+      </table>
+      <p><b>You don’t have to choose one.</b> A crew can be a single LangGraph node, and a CrewAI Flow can call any Python, including a compiled graph. A common shape: LangGraph (or a Flow) for the skeleton, a crew where a step genuinely needs a team.</p>
+    </div>
+  </div>
+  <div><span class="kicker">The code: the same four patterns in crews/</span></div>
+  <div class="tour" data-tour="crewai" style="--c:var(--cr)"></div>
+</section>
+
+<!-- ============================================================ 4 · LIVE DEMO -->
+<section data-sec="live" data-title="Live demo" hidden>
+  <div class="sechead">
+    <div>
+      <span class="kicker">4 · Live demo · real graphs, real crews</span>
+      <h2 class="h2">Run it: pick a framework, a brain and a world</h2>
+    </div>
+  </div>
+  <div class="opts">
+    <div class="opt"><b>Framework</b>LangGraph (<code>patterns/</code>) or CrewAI (<code>crews/</code>): the same four patterns.</div>
+    <div class="opt"><b>Brain</b>Scripted (same result every run), or Claude haiku / sonnet through the CLI bridge.</div>
+    <div class="opt"><b>World</b>Demo stores · Live sites (Amazon.in, Flipkart, Myntra in Chrome) · Live recording (replay, no network).</div>
+    <div class="opt"><b>Live options</b>Show the browser or hide it, collect fresh evidence, and open the evidence page with what each site showed.</div>
+  </div>
+  <div class="demo" data-port="live">
+    <iframe title="Live demo: four patterns, one query" scrolling="no" hidden></iframe>
+    <div class="off" hidden>
+      <b>The live demo isn’t running.</b>
+      <p>Start it with one command, then press Retry (or reload):</p>
+      <pre class="term"><span class="p">$</span> python app.py                                  <span class="c"># scripted brain by default</span>
+<span class="p">$</span> $env:LAB_LLM="claude"; python app.py           <span class="c"># PowerShell: start with Claude</span></pre>
+      <button class="btn retry">Retry</button>
+    </div>
+  </div>
+</section>
+
+</div>
+
+<script>
+const $=s=>document.querySelector(s);
+const NS='http://www.w3.org/2000/svg';
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+function el(t,a,p){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);p&&p.appendChild(e);return e}
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+// ================================================================= 1 · pattern simulator
+const Le=$('#edges'),Ln=$('#nodes'),Lf=$('#fx');
+const ROLE={user:'var(--user)',infra:'var(--infra)',agent:'var(--agent)',critic:'var(--critic)',sup:'var(--sup)',spawn:'var(--accent)',event:'var(--event)'};
+const TYPES={task:{l:'TASK',c:'var(--agent)',d:'work handed on'},data:{l:'DATA',c:'var(--data)',d:'result'},flag:{l:'FLAG',c:'var(--bad)',d:'rejected'},
+  ok:{l:'OK',c:'var(--ok)',d:'approved'},event:{l:'EVENT',c:'var(--event)',d:'something changed'},ask:{l:'ASK',c:'var(--accent)',d:'needs a human'},
+  write:{l:'WRITE',c:'var(--accent)',d:'to shared state'},read:{l:'READ',c:'var(--data)',d:'from shared state'}};
+let RUN=0,PAUSED=false,SPEED=1,STEPPING=false,AUTO=false,N,E,CW,S,T0,USED;
+class Stop extends Error{}
+function rs(){$('#sA').textContent=S.agents;$('#sM').textContent=S.msgs;$('#sT').textContent=S.tok.toLocaleString('en-IN');$('#sH').textContent=S.human;
+  $('#sTb').classList.toggle('hot',S.tok>4000);$('#mCount').textContent=S.msgs+' message'+(S.msgs===1?'':'s')}
+function reset(){RUN++;N={};E={};CW={};USED=new Set;S={agents:0,msgs:0,tok:0,human:0};
+  Le.innerHTML='';Ln.innerHTML='';Lf.innerHTML='';$('#log').innerHTML='';$('#ctxs').innerHTML='';$('#out').hidden=true;$('#out').innerHTML='';
+  $('#legend').innerHTML='<span>Message types appear here as agents use them</span>';$('#phase').textContent='';
+  $('#capN').textContent='00';$('#capT').textContent='Starting…';noteBar('');T0=performance.now();rs()}
+function noteBar(t,k){const b=$('#noteBar');b.className='notebar '+(k||'');b.textContent=t||' '}
+const est=t=>Math.max(8,Math.round(String(t).length/3.6));
+
+function ctx(k){
+  const chk=()=>{if(k!==RUN)throw new Stop()};
+  const w=async ms=>{let left=reduce?Math.min(ms,150):ms;while(left>0){await new Promise(r=>setTimeout(r,40));chk();if(!PAUSED)left-=40*SPEED}};
+  let n=0;
+  const log=(who,text,kind,c,type)=>{const li=document.createElement('li');if(kind)li.className=kind;
+    const t=document.createElement('span');t.className='t';t.textContent=((performance.now()-T0)/1000).toFixed(1).padStart(4,' ')+'s';li.append(t);
+    if(type){const y=document.createElement('span');y.className='ty';y.textContent=TYPES[type].l;y.style.setProperty('--c',TYPES[type].c);li.append(y)}
+    if(who){const s=document.createElement('span');s.className='who';s.textContent=who;if(c)s.style.setProperty('--c',c);li.append(s,' ')}
+    li.append(text);const L=$('#log');L.append(li);L.scrollTop=L.scrollHeight};
+  const step=t=>{if(STEPPING){STEPPING=false;setPaused(true)}   // Step ⏭: stop at the start of the next step
+    n++;$('#capN').textContent=String(n).padStart(2,'0');const x=$('#capT');x.textContent=t;x.classList.remove('swap');void x.offsetWidth;x.classList.add('swap');log('','— '+t,'sys')};
+  const phase=t=>{$('#phase').textContent=t};
+  const legend=type=>{if(USED.has(type))return;if(!USED.size)$('#legend').innerHTML='';USED.add(type);const s=document.createElement('span');
+    s.innerHTML=`<i></i><em>${TYPES[type].l}</em>${TYPES[type].d}`;s.querySelector('i').style.setProperty('--c',TYPES[type].c);$('#legend').append(s)};
+  // context windows: one card per agent, a chip per thing it has seen
+  const card=(id,label,c)=>{const d=document.createElement('div');d.className='cw';d.style.setProperty('--c',c);
+    d.innerHTML='<div class="top"><span class="who"><i></i></span><span class="tk">0 tok</span></div><div class="bar"><i></i></div><div class="chips"></div>';
+    d.querySelector('.who').append(label);$('#ctxs').append(d);CW[id]={d,tok:0}};
+  const see=(id,text,o={})=>{const cw=CW[id];if(!cw)return;const t=o.tok??est(text);cw.tok+=t;S.tok+=t;
+    const ch=document.createElement('span');ch.className='chip '+(o.kind||'');ch.textContent=text+(o.showTok===false?'':` · ${t}`);cw.d.querySelector('.chips').append(ch);
+    cw.d.querySelector('.tk').textContent=cw.tok.toLocaleString('en-IN')+' tok';const b=cw.d.querySelector('.bar i');b.style.width=Math.min(100,cw.tok/30)+'%';b.classList.toggle('over',cw.tok>1800);
+    cw.d.classList.add('flash');setTimeout(()=>cw.d.classList.remove('flash'),450);rs()};
+  const forget=()=>{for(const id in CW){const cw=CW[id];S.tok-=cw.tok;cw.tok=0;cw.d.querySelector('.chips').innerHTML='';cw.d.querySelector('.tk').textContent='0 tok';cw.d.querySelector('.bar i').style.width='0'}rs()};
+  const node=(id,label,x,y,o={})=>{const g=el('g',{class:'node'+(o.dim?' dim':'')+(o.spawn?' spawn':''),transform:`translate(${x},${y})`},Ln);
+    const c=ROLE[o.role||'agent'];g.style.setProperty('--c',c);
+    const inner=el('g',{class:'inner'+(o.float?' float':'')},g);inner.style.animationDelay=(-Math.random()*3).toFixed(2)+'s';
+    el('circle',{class:'ring',r:18},inner);el('circle',{class:'core',r:18},inner);
+    el('text',{class:'glyph','text-anchor':'middle',dy:4},inner).textContent=o.glyph||label.slice(0,2).toUpperCase();
+    el('text',{class:'lbl','text-anchor':'middle',dy:32},inner).textContent=label;
+    const st=el('text',{class:'nst','text-anchor':'middle',dy:43},inner);st.textContent=o.status||'';
+    N[id]={x,y,g,inner,st,label,c};if(!['user','infra','event'].includes(o.role)){S.agents++;rs()}
+    if(o.card!==false&&o.role!=='user')card(id,label,c)};
+  const set=(id,state,status)=>{const nn=N[id];nn.inner.classList.remove('float');nn.g.classList.remove('active','done','bad','dim','wait');if(state)nn.g.classList.add(state);if(status!==undefined)nn.st.textContent=status};
+  const edge=(a,b,o={})=>{if(E[a+'|'+b]||E[b+'|'+a])return;const A=N[a],B=N[b];const dx=B.x-A.x,dy=B.y-A.y,L=Math.hypot(dx,dy),ux=dx/L,uy=dy/L,r=21;
+    const x1=A.x+ux*r,y1=A.y+uy*r,x2=B.x-ux*r,y2=B.y-uy*r,bend=(o.bend??.1)*L;
+    const p=el('path',{d:`M${x1},${y1} Q${(x1+x2)/2-uy*bend},${(y1+y2)/2+ux*bend} ${x2},${y2}`,class:'edge '+(o.dashed?'':'draw')+(o.peer?' peer':''),pathLength:1},Le);
+    if(o.dashed){p.setAttribute('stroke-dasharray','4 4');p.removeAttribute('pathLength')}E[a+'|'+b]={p,a,b}};
+  const getE=(a,b)=>E[a+'|'+b]||E[b+'|'+a];
+  const hot=(a,b,on=true)=>{const e=getE(a,b);e&&e.p.classList.toggle('hot',on)};
+  const bubble=(id,text,kind)=>{const nn=N[id];const txt=text.length>38?text.slice(0,37)+'…':text;
+    const g=el('g',{class:'bub '+(kind||''),transform:`translate(${nn.x},${nn.y-25})`},Lf);
+    const wd=Math.min(210,txt.length*5.2+16);let x=-wd/2;if(nn.x+x<4)x=4-nn.x;if(nn.x+x+wd>396)x=396-wd-nn.x;
+    el('rect',{x,y:-17,width:wd,height:16,rx:8},g);el('text',{x:x+wd/2,y:-6,'text-anchor':'middle'},g).textContent=txt;setTimeout(()=>g.remove(),2300/SPEED)};
+  const fly=(a,b,type)=>new Promise(res=>{const e=getE(a,b);if(!e)return res();const p=e.p,len=p.getTotalLength(),rev=e.a!==a,T=TYPES[type];
+    p.style.stroke=T.c;p.style.strokeWidth='2.2';const done=()=>{setTimeout(()=>{p.style.stroke='';p.style.strokeWidth=''},450);res()};
+    if(reduce)return done();const wd=T.l.length*6+10;const g=el('g',{class:'pkt'},Lf);g.style.setProperty('--c',T.c);
+    el('rect',{x:-wd/2,y:-7,width:wd,height:14,rx:7},g);el('text',{y:3,'text-anchor':'middle'},g).textContent=T.l;
+    let t=0,last=performance.now();const D=700;
+    (function f(now){if(!PAUSED)t+=(now-last)*SPEED;last=now;const q=Math.min(1,t/D),e2=q<.5?2*q*q:1-Math.pow(-2*q+2,2)/2;
+      const pt=p.getPointAtLength((rev?1-e2:e2)*len);g.setAttribute('transform',`translate(${pt.x},${pt.y})`);
+      if(q<1&&k===RUN)requestAnimationFrame(f);else{g.remove();done()}})(last)});
+  // a message: draws the edge, flies a packet, and puts what was sent into the receiver's context window
+  const msg=async(a,b,type,text,o={})=>{edge(a,b,{bend:o.bend,peer:o.peer});legend(type);bubble(a,text,o.kind);await fly(a,b,type);chk();
+    S.msgs++;rs();log(`${N[a].label} → ${N[b].label}:`,text,o.kind,N[a].c,type);if(o.see!==false)see(b,o.see||text,{tok:o.tok,kind:o.seeKind})};
+  const all=(...ps)=>Promise.all(ps);
+  const say=(id,text,kind)=>{bubble(id,text,kind);log(N[id].label+':',text,kind,N[id].c)};
+  const note=(text,kind)=>{noteBar(text,kind);log('',text,kind||'sys')};
+  const out=html=>{const o=$('#out');o.innerHTML=html;o.hidden=false};
+  const human=v=>{S.human=v;rs()};
+  const ask=(q,yes,no)=>new Promise(res=>{out(`<p class="big">${q}</p><div class="ctrl"><button class="btn" id="ay">${yes}</button><button class="btn ghost" id="an">${no}</button></div>`);
+    $('#ay').onclick=()=>res(true);$('#an').onclick=()=>res(false)});
+  return {w,step,phase,node,set,edge,hot,msg,all,say,note,out,see,forget,human,ask,log,k,tok:()=>S.tok};
+}
+
+// ---- the eight simulations. Each one: nodes, messages, and what lands in whose context window.
+const SIMS=[
+{key:'seq',name:'Sequential handoff',short:'a fixed chain of agents',
+ when:'Steps are known and never change: ETL, form processing, a review chain.',risk:'Every handoff is a bottleneck: the next agent only knows what the last one chose to pass on.',
+ lg:'g.add_edge("a", "b")\ng.add_edge("b", "c")',cr:'Crew(tasks=[a, b, c],\n     process=Process.sequential)',
+ run:async c=>{c.human(1);
+  c.node('u','You',30,150,{role:'user',glyph:'YOU'});c.node('a','Agent A',115,150,{glyph:'A',status:'idle'});c.node('b','Agent B',200,150,{glyph:'B',status:'idle'});
+  c.node('c','Agent C',285,150,{glyph:'C',status:'idle'});c.node('o','Output',368,150,{role:'infra',glyph:'OUT',card:false});
+  c.step('A developer wired three agents in a row');await c.w(600);
+  c.step('Agent A gets the whole task: three requirements');
+  await c.msg('u','a','task','task: R1 + R2 + R3',{see:'task: R1, R2, R3',tok:30});c.set('a','active','working');await c.w(700);
+  c.say('a','Done: result covers R1');c.set('a','done','done');
+  c.step('Each agent passes on only its output');
+  await c.msg('a','b','data','result (R1)',{see:'A’s result: about R1',tok:160});c.set('b','active','working');
+  c.note('Agent B never sees the task. It only gets what Agent A chose to pass on.','warn');await c.w(900);
+  c.say('b','Refined the result');c.set('b','done','done');
+  await c.msg('b','c','data','refined result (R1)',{see:'B’s result: about R1',tok:120});c.set('c','active','working');await c.w(700);
+  c.say('c','Final answer');c.set('c','done','done');
+  await c.msg('c','o','data','final answer',{see:false});
+  c.step('What was not handed on is gone');c.set('c','bad','incomplete');
+  c.note('R2 and R3 were in the task, but only Agent A ever saw them.','bad');
+  c.out(`<p class="big">Output meets R1, misses R2 and R3 <span class="bad">✗</span></p><p>Each handoff narrows what the next agent knows. Pass the goal along with the work, or hand off a structured result that says what is still open.</p>`)}},
+
+{key:'ctx',name:'Selective context',short:'each agent sees only what it needs',
+ when:'Always. Give every agent a brief: its objective, its inputs, the output you want back.',risk:'Share everything and context windows fill with noise, cost more, and a reviewer anchors on the author’s reasoning.',
+ lg:'Send("worker", {"subtask": s})\n# a node reads only the keys it needs',cr:'Task(..., context=[research])\n# only these outputs reach the task',
+ run:async c=>{c.human(1);
+  c.node('lead','Coordinator',62,150,{glyph:'CO'});
+  [['wa','Worker A',180,60,'A'],['wb','Worker B',180,150,'B'],['wc','Worker C',180,240,'C']].forEach(([id,l,x,y,g])=>c.node(id,l,x,y,{glyph:g,status:'idle'}));
+  c.node('ld','Lead',290,150,{glyph:'LD'});c.node('rv','Reviewer',365,62,{role:'critic',glyph:'RV'});
+  c.phase('RUN 1 · SHARE EVERYTHING');
+  c.step('Run 1: every agent gets the whole transcript');
+  await c.all(...['wa','wb','wc'].map((id,i)=>c.w(i*120).then(()=>c.msg('lead',id,'task','everything so far',{see:'full transcript + all subtasks',tok:900}))));
+  ['wa','wb','wc'].forEach(id=>c.set(id,'active','reading'));await c.w(800);
+  c.note('Each worker reads all three subtasks to do one. Context bars fill up.','warn');await c.w(700);
+  await c.all(c.msg('wa','ld','data','notes + reasoning',{tok:500}),c.w(150).then(()=>c.msg('wb','ld','data','notes + reasoning',{tok:500})),c.w(300).then(()=>c.msg('wc','ld','data','notes + reasoning',{tok:500})));
+  ['wa','wb','wc'].forEach(id=>c.set(id,'done','done'));c.set('ld','active','drafting');await c.w(500);
+  c.say('ld','“Draft ready: confident it meets R3”');
+  await c.msg('ld','rv','data','transcript + my reasoning',{see:'whole transcript + the lead’s reasoning',tok:1900});
+  c.set('rv','active','reviewing');await c.w(900);c.say('rv','“Agreed, looks complete”','bad');c.set('rv','bad','anchored');
+  c.note('The reviewer read the lead’s reasoning and agreed with it. Nobody checked R3 against the draft.','bad');await c.w(2200);
+  const t1=c.tok();c.step('Run 2: each agent gets only what it needs');c.phase('RUN 2 · SELECTIVE CONTEXT');c.forget();
+  ['wa','wb','wc','ld','rv'].forEach(id=>c.set(id,'','idle'));await c.w(600);
+  await c.all(...[['wa','subtask 1'],['wb','subtask 2'],['wc','subtask 3']].map(([id,s],i)=>c.w(i*120).then(()=>c.msg('lead',id,'task','brief: '+s,{see:'brief: '+s+' · goal · output format',tok:140}))));
+  ['wa','wb','wc'].forEach(id=>c.set(id,'active','working'));await c.w(700);
+  await c.all(c.msg('wa','ld','data','result 1',{tok:40}),c.w(150).then(()=>c.msg('wb','ld','data','result 2',{tok:40})),c.w(300).then(()=>c.msg('wc','ld','data','result 3',{tok:40})));
+  ['wa','wb','wc'].forEach(id=>c.set(id,'done','done'));c.set('ld','active','drafting');await c.w(400);
+  c.say('ld','Draft ready');
+  await c.msg('ld','rv','data','draft + acceptance criteria',{see:'the draft + R1, R2, R3 only',tok:120,seeKind:'ok'});c.set('rv','active','checking');await c.w(800);
+  c.say('rv','R3 is not met','good');c.set('rv','done','caught it');
+  await c.msg('rv','ld','flag','R3 missing: fix it',{kind:'bad',tok:20});c.say('ld','Fixed: R3 covered','good');c.set('ld','done','done');
+  c.note('A clean context made the reviewer check the work, not the author. And it cost a fraction of the tokens.','good');
+  c.out(`<p class="big">Run 1: the gap slipped through <span class="bad">✗</span> · Run 2: caught it <span class="good">✓</span></p><p>Same agents. Run 1 put <b>${t1.toLocaleString('en-IN')}</b> tokens into context windows; run 2, with a brief for each agent, <b>${c.tok().toLocaleString('en-IN')}</b>. And the reviewer checked the work against the criteria.</p>`)}},
+
+{key:'hier',name:'Hierarchical process',short:'a manager delegates, workers report back',
+ when:'Open-ended work where the next step depends on the last result.',risk:'The manager is a bottleneck and a single point of failure; its context grows with every report.',
+ lg:'g.add_conditional_edges("manager", route,\n    ["research", "draft", "verify", END])',cr:'Crew(..., process=Process.hierarchical,\n     manager_llm=llm)',
+ run:async c=>{c.human(1);
+  c.node('u','You',30,150,{role:'user',glyph:'YOU'});c.node('m','Manager',120,150,{role:'sup',glyph:'MG'});
+  c.node('wr','Researcher',268,52,{glyph:'RS',status:'idle'});c.node('ww','Writer',310,150,{glyph:'WR',status:'idle'});c.node('wv','Verifier',268,250,{glyph:'VF',status:'idle'});
+  c.node('o','Output',120,262,{role:'infra',glyph:'OUT',card:false});
+  c.step('You give the goal to a manager');await c.msg('u','m','task','goal',{see:'goal + constraints',tok:30});c.set('m','active','planning');await c.w(500);
+  c.step('The manager decides who works next, one result at a time');
+  await c.msg('m','wr','task','research the topic',{tok:30});c.set('wr','active','working');await c.w(700);
+  await c.msg('wr','m','data','findings (5 sources)',{see:'Researcher’s findings',tok:160});c.set('wr','done','done');await c.w(400);
+  c.say('m','Next: draft from the findings');
+  await c.msg('m','ww','task','draft it',{tok:120});c.set('ww','active','working');await c.w(700);
+  await c.msg('ww','m','data','draft v1',{see:'Writer’s draft',tok:130});c.set('ww','done','done');await c.w(400);
+  c.step('A result surprises it, so it adds a step nobody planned');
+  c.say('m','Two sources disagree: verify first');c.note('No fixed plan had a verification step. The manager added one because of what it saw.','warn');await c.w(900);
+  await c.msg('m','wv','task','check the conflicting claim',{tok:40});c.set('wv','active','checking');await c.w(700);
+  await c.msg('wv','m','flag','source 3 is unreliable',{kind:'bad',see:'Verifier’s result',tok:40});c.set('wv','done','done');
+  c.say('m','Drop source 3, finalise','good');c.set('m','done','done');
+  await c.msg('m','o','data','final output',{see:false});
+  c.note('Every message went through the manager: its context window is the biggest on the board.','warn');
+  c.out(`<p class="big">Delivered, with a step nobody planned <span class="good">✓</span></p><p>The manager adapted the plan at run time. The price: every report flows through one agent, and its context keeps growing.</p>`)}},
+
+{key:'par',name:'Parallel fan-out / fan-in',short:'many agents at once, one waits for all',
+ when:'Independent subtasks: sources, files, regions, candidates.',risk:'One slow agent holds everyone up, and every extra agent adds tokens.',
+ lg:'[Send("worker", {"part": p}) for p in parts]\ng.add_edge("worker", "aggregate")  # fan in',cr:'Task(..., async_execution=True)  # per part\nTask(..., context=[a, b, c])      # fan in',
+ run:async c=>{c.human(1);
+  c.node('lead','Coordinator',58,150,{glyph:'CO'});
+  [['wa','Worker A',190,58,'A'],['wb','Worker B',190,150,'B'],['wc','Worker C',190,242,'C']].forEach(([id,l,x,y,g])=>c.node(id,l,x,y,{glyph:g,status:'idle'}));
+  c.node('ag','Aggregator',318,150,{glyph:'AG',status:'waiting 0/3'});
+  c.step('Fan out: one worker per part, all at once');
+  await c.all(...[['wa','part 1'],['wb','part 2'],['wc','part 3']].map(([id,s],i)=>c.w(i*90).then(()=>c.msg('lead',id,'task',s,{see:s+' + goal',tok:140}))));
+  ['wa','wb','wc'].forEach(id=>c.set(id,'active','working'));
+  c.note('Three parts at the same time: about 2 s instead of 6 s one after another.','good');await c.w(900);
+  c.step('Fan in: the aggregator waits for every worker');
+  const fin=async(id,t,d,i)=>{await c.w(d);await c.msg(id,'ag','data',t,{tok:30});c.set(id,'done','done');c.set('ag','wait',`waiting ${i}/3`)};
+  await fin('wb','result 2',0,1);await fin('wa','result 1',200,2);c.note('Worker C is slow. Everyone waits for the slowest worker.','warn');await fin('wc','result 3',1100,3);
+  c.set('ag','active','combining');await c.w(500);c.say('ag','3 results combined','good');c.set('ag','done','done');
+  c.out(`<p class="big">Three parts in the time of the slowest one</p><p>Fan out when the work is independent; the join waits for everyone, so the slowest branch sets the pace.</p>`)}},
+
+{key:'crit',name:'Critic loop',short:'a reviewer can send work back',
+ when:'Anything where a wrong answer is costly: actions, code, claims.',risk:'Loops forever without a limit. A reviewer that shares the author’s context shares its blind spots.',
+ lg:'g.add_conditional_edges("review", verdict,\n    ["generate", END])',cr:'Task(..., guardrail=check,\n     guardrail_max_retries=2)',
+ run:async c=>{c.human(1);
+  c.node('gn','Generator',95,150,{glyph:'GN'});c.node('rv','Reviewer',255,150,{role:'critic',glyph:'RV'});c.node('o','Output',365,150,{role:'infra',glyph:'OUT',card:false});
+  c.see('rv','acceptance criteria: C1, C2, C3',{tok:30,kind:'own'});
+  c.step('The generator produces a first draft');c.set('gn','active','attempt 1/3');c.say('gn','Draft v1');await c.w(600);
+  await c.msg('gn','rv','data','draft v1',{see:'draft v1',tok:120});c.set('rv','active','checking');await c.w(800);
+  c.step('The reviewer checks it against the criteria');c.say('rv','Fails C2','bad');
+  await c.msg('rv','gn','flag','fails C2: fix it',{kind:'bad',see:'feedback: fails C2',seeKind:'bad',tok:25});c.set('gn','bad','rework');await c.w(800);
+  c.step('Rework: the generator tries again with the feedback');c.set('gn','active','attempt 2/3');c.say('gn','Draft v2');await c.w(500);
+  await c.msg('gn','rv','data','draft v2',{see:'draft v2',tok:120});c.set('rv','active','checking');await c.w(700);
+  c.say('rv','Meets C1–C3. Approved','good');c.set('rv','done','approved');c.set('gn','done','done');
+  await c.msg('rv','o','ok','approved',{see:false});
+  c.note('A limit of 3 attempts keeps the loop from running forever.','warn');
+  c.out(`<p class="big">Approved on attempt 2 <span class="good">✓</span></p><p>One rejection, one retry. The loop is cheap insurance, as long as it has a limit.</p>`)}},
+
+{key:'board',name:'Shared state · blackboard',short:'agents read and write one board',
+ when:'Many specialists contribute pieces; the order isn’t known up front.',risk:'Two agents writing the same field make conflicting decisions. Keep one writer per decision.',
+ lg:'findings: Annotated[list, operator.add]\n# a reducer merges parallel writes',cr:'class State(BaseModel): ...\nclass F(Flow[State]):  # self.state',
+ run:async c=>{c.human(1);
+  c.node('b','Shared state',200,150,{role:'infra',glyph:'{ }'});
+  [['wa','Agent A',70,60,null,'A'],['wb','Agent B',330,60,null,'B'],['ld','Lead',70,240,null,'LD'],['rv','Reviewer',330,240,'critic','RV']].forEach(([id,l,x,y,r,g])=>c.node(id,l,x,y,{role:r,glyph:g,status:'idle'}));
+  c.step('Agents write findings to one shared state');
+  await c.all(c.msg('wa','b','write','findings += [x]',{see:'findings: x',tok:30}),c.w(120).then(()=>c.msg('wb','b','write','findings += [y]',{see:'findings: y',tok:30})));
+  c.note('Both wrote at once. A reducer (append) keeps both findings: nothing is lost.','good');await c.w(1000);
+  c.step('Others read what they need from it');
+  await c.msg('b','ld','read','findings',{see:'findings: x, y',tok:60});c.set('ld','active','deciding');await c.w(500);
+  c.step('Two agents write the same decision');
+  await c.all(c.msg('ld','b','write','decision = x',{see:'decision: x',tok:15}),c.w(100).then(()=>c.msg('rv','b','write','decision = y',{kind:'bad',see:'decision: y (conflict!)',seeKind:'bad',tok:15})));
+  c.set('ld','bad','conflict');c.set('rv','bad','conflict');c.note('Two writers, one field: whichever lands last wins. That’s a bug, not a decision.','bad');await c.w(1600);
+  c.step('Fix: one writer per decision');c.set('rv','active','reviewing');
+  await c.msg('rv','b','write','verdict = reject x',{see:'verdict: reject x',tok:15});
+  await c.msg('b','ld','read','verdict',{tok:20});c.set('ld','done','decision: y');c.set('rv','done','done');
+  await c.msg('ld','b','write','decision = y',{see:'decision: y',seeKind:'ok',tok:15});
+  c.out(`<p class="big">Shared state works, with two rules</p><p>Merge parallel writes with a reducer; give each decision a single writer. The reviewer writes a verdict, only the lead writes the decision.</p>`)}},
+
+{key:'event',name:'Event-driven',short:'something changes, agents start',
+ when:'Alerts, tickets, prices, files arriving: work that should start itself.',risk:'Nobody is watching when it starts. It needs a budget, a stop rule and a human for anything irreversible.',
+ lg:'# an event handler calls the graph\ngraph.invoke({"event": alert})',cr:'class Watch(Flow):\n  @start() … @router(…) … @listen("go")',
+ run:async c=>{c.human(0);
+  c.node('fd','Event source',48,62,{role:'event',glyph:'EV',card:false});c.node('wt','Watcher',48,232,{glyph:'WA',float:1,dim:1,status:'sleeping'});
+  c.node('tm','Team',205,150,{glyph:'TM',dim:1,status:'idle'});c.node('ck','Reviewer',330,62,{role:'critic',glyph:'RV',dim:1,status:'idle'});c.node('u','You',338,236,{role:'user',glyph:'YOU'});
+  c.step('No prompt. The watcher holds a rule: what to react to');c.see('wt','rule: react when X crosses a threshold',{tok:30,kind:'own'});await c.w(1400);
+  c.step('Something changes in the world');c.say('fd','X crossed the threshold','warn');await c.w(500);
+  await c.msg('fd','wt','event','alert',{see:'event: X crossed the threshold',tok:20});c.set('wt','active','deciding');await c.w(700);
+  c.say('wt','Matches the rule: act');
+  c.step('It wakes the team: nobody pressed run');
+  await c.msg('wt','tm','task','handle it',{tok:40});c.set('tm','active','working');await c.w(900);
+  await c.msg('tm','ck','data','proposed action',{tok:50});c.set('ck','active','checking');await c.w(600);c.set('ck','done','approved');c.set('tm','done','done');
+  c.step('You hear about it only when there is something to decide');
+  await c.msg('wt','u','ask','approve the action?',{see:false});c.set('wt','done','notified');
+  c.note('Human steps: 0 until this message. The agents started the work themselves.','good');
+  c.out(`<p class="big">The work started itself</p><p>Something changed, not someone typing. That’s why the next pattern matters.</p>`)}},
+
+{key:'hitl',name:'Human in the loop',short:'pause, ask, resume',
+ when:'Anything irreversible: payments, deletes, emails, deploys.',risk:'Without it an agent can spend, delete or send with nobody asked. With it, the graph must be able to wait.',
+ lg:'answer = interrupt(proposal)   # pauses, state saved\ngraph.invoke(Command(resume="approve"), cfg)',cr:'Task(..., human_input=True)\n# or @human_feedback in a Flow',
+ run:async c=>{c.human(0);
+  c.node('ag','Agent',70,150,{glyph:'AG'});c.node('gt','Approval',205,150,{role:'sup',glyph:'AP'});c.node('ex','Execute',340,150,{role:'infra',glyph:'EX',card:false});
+  c.node('u','You',205,262,{role:'user',glyph:'YOU'});c.node('cp','Checkpoint',205,40,{role:'infra',glyph:'CP',card:false});
+  c.step('The agent proposes an irreversible action');c.set('ag','active','proposing');
+  await c.msg('ag','gt','task','proposal: action Z',{see:'proposal: action Z (cannot be undone)',tok:30});c.set('ag','done','waiting');
+  c.step('The graph pauses and saves its state');c.set('gt','wait','paused');
+  await c.msg('gt','cp','write','state saved',{see:false});c.note('Paused at interrupt(). The state is on disk: the process could even restart.','warn');await c.w(800);
+  await c.msg('gt','u','ask','approve action Z?',{see:false});
+  c.step('Your turn: approve or deny');
+  const yes=await c.ask('Approve action Z? It cannot be undone.','Approve','Deny');c.human(1);
+  c.log('You:',yes?'Approved':'Denied',yes?'good':'warn','var(--accent)');$('#out').hidden=true;
+  c.step('Resume with your answer');await c.msg('cp','gt','read','state restored',{see:false});
+  await c.msg('u','gt',yes?'ok':'flag',yes?'approve':'deny',{see:'human: '+(yes?'approve':'deny'),seeKind:yes?'ok':'bad',tok:5});
+  if(yes){c.set('gt','done','approved');await c.msg('gt','ex','ok','run action Z',{see:false});c.note('Decided by a human. Nothing irreversible happened before you said yes.','good');
+    c.out(`<p class="big">Approved <span class="good">✓</span> · action executed</p><p>The agents did everything except the one thing that can’t be undone.</p>`)}
+  else{c.set('gt','bad','denied');c.note('Denied: nothing happened. The agents can try another way.','warn');
+    c.out(`<p class="big">Denied · nothing executed</p><p>The pause is the point: the decision stayed with you.</p>`)}}}
+];
+
+let cur=0;
+SIMS.forEach((P,i)=>{const b=document.createElement('button');b.className='pk';b.setAttribute('aria-pressed','false');
+  b.innerHTML=`<b>${String(i+1).padStart(2,'0')}</b><span>${P.name}</span><small>${P.short}</small>`;b.onclick=()=>go(i);$('#pick').append(b)});
+function pcard(P){$('#pcard').innerHTML=`<div class="pc"><b>Use when</b>${esc(P.when)}</div><div class="pc bad"><b>Watch out</b>${esc(P.risk)}</div>
+  <div class="pc lg"><b>In LangGraph</b><code>${esc(P.lg)}</code></div><div class="pc cr"><b>In CrewAI</b><code>${esc(P.cr)}</code></div>`}
+async function go(i){cur=i;const P=SIMS[i];STEPPING=false;setPaused(false);
+  document.querySelectorAll('.pk').forEach((b,j)=>b.setAttribute('aria-pressed',j===i));
+  $('#wm').textContent=P.name.toUpperCase();pcard(P);reset();const c=ctx(RUN);
+  try{await P.run(c);if(c.k!==RUN)return;$('#capT').textContent+='  ·  done';
+    if(AUTO&&i<SIMS.length-1){await c.w(3000);go(i+1)}}   // auto-play: a pause to read the outcome, then the next pattern
+  catch(e){if(!(e instanceof Stop))console.error(e)}}
+
+// ---- player controls: restart · pause/play · step · speed · auto-play. Speed and auto-play are remembered.
+const SPEEDS=[.25,.5,1,1.5,2,3];
+const keep={get:k=>{try{return localStorage.getItem(k)}catch{return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch{}}};
+function setPaused(p){PAUSED=p;const b=$('#play');b.textContent=p?'▶ Play':'❚❚ Pause';b.classList.toggle('paused',p)}
+function setSpeed(v){SPEED=v;keep.set('talk-speed',v);document.querySelectorAll('#speeds button').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.v===v))}
+SPEEDS.forEach(v=>{const b=document.createElement('button');b.dataset.v=v;b.textContent=v+'×';b.onclick=()=>setSpeed(v);$('#speeds').append(b)});
+setSpeed(SPEEDS.includes(+keep.get('talk-speed'))?+keep.get('talk-speed'):1);
+AUTO=keep.get('talk-auto')==='1';$('#auto').checked=AUTO;
+$('#auto').onchange=()=>{AUTO=$('#auto').checked;keep.set('talk-auto',AUTO?'1':'0')};
+$('#replay').onclick=()=>go(cur);
+$('#play').onclick=()=>{STEPPING=false;setPaused(!PAUSED)};
+$('#stepb').onclick=()=>{STEPPING=true;setPaused(false)};
+const nudge=d=>{const i=SPEEDS.indexOf(SPEED);setSpeed(SPEEDS[Math.min(SPEEDS.length-1,Math.max(0,i+d))])};
+
+// ================================================================= 2 + 3 · code tours
+// CODE is generated from the repo (see the build note in README): each excerpt is the real source.
+const CODE=/*CODE*/{"lg_state": {"file": "patterns/l2_team.py", "code": "class State(TypedDict, total=False):\n    query: str\n    ask_first: bool                          # Level 3: propose to the user instead of ordering\n    offers: Annotated[list, operator.add]    # parallel scouts can only append\n    rejected: Annotated[list, operator.add]\n    pick: Optional[str]\n    answer: str", "nums": [26, 27, 28, 29, 30, 31, 32], "hl": [3, 4], "note": null}, "lg_node": {"file": "patterns/l2_team.py", "code": "def evaluator(state):\n    left = [i for i in state[\"offers\"] if i not in state.get(\"rejected\", [])]\n    c.status(\"evaluator\", \"active\", \"comparing\")\n    if not left:\n        c.say(\"evaluator\", \"No offer is left that meets the query.\", \"bad\")\n        return {\"pick\": None, \"answer\": \"Nothing found.\"}\n    cheapest = min(left, key=world.price)\n    reply = c.think(\"evaluator\", \"You are the evaluator. Pick the best listing for the query: the cheapest that meets it.\",\n                    {\"query\": state[\"query\"], \"offers\": [{\"id\": i, \"listing\": world.label(i)} for i in left]}, left,\n                    offline={\"action\": cheapest, \"say\": f\"Best offer: {world.label(cheapest)}.\"})\n    c.say(\"evaluator\", reply[\"say\"])\n    c.listing(reply[\"action\"], \"pick\")\n    c.status(\"evaluator\", \"done\", world.name(reply[\"action\"]))\n    c.msg(\"evaluator\", \"critic\", \"data\", f\"pick: {world.label(reply['action'])}\")\n    return {\"pick\": reply[\"action\"], \"answer\": reply[\"say\"]}", "nums": [65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79], "hl": [1, 5, 7, 14], "note": null}, "lg_edges": {"file": "patterns/l0_pipeline.py", "code": "def build():\n    g = StateGraph(State)\n    for n, f in ((\"search\", search), (\"filter\", filter_price), (\"pick\", pick), (\"checkout\", checkout)):\n        g.add_node(n, f)\n    g.add_edge(START, \"search\")\n    g.add_edge(\"search\", \"filter\")\n    g.add_edge(\"filter\", \"pick\")\n    g.add_edge(\"pick\", \"checkout\")\n    g.add_edge(\"checkout\", END)\n    return g.compile()", "nums": [78, 79, 80, 81, 82, 83, 84, 85, 86, 87], "hl": [3, 4, 5, 6, 7, 8, 9], "note": null}, "lg_route": {"file": "patterns/l1_orchestrator.py", "code": "# patterns/l1_orchestrator.py\ndef route(state):\n    return \"worker\" if state[\"next\"] < len(state[\"plan\"]) else \"checkout\"\n…\ndef build():\n    g = StateGraph(State)\n    g.add_node(\"planner\", planner)\n    g.add_node(\"worker\", worker)\n    g.add_node(\"checkout\", checkout)\n    g.add_edge(START, \"planner\")\n    g.add_conditional_edges(\"planner\", route, [\"worker\", \"checkout\"])\n    g.add_edge(\"worker\", \"planner\")          # hub and spoke: every result returns to the planner\n    g.add_edge(\"checkout\", END)\n    return g.compile()", "nums": ["", 58, 59, "", 120, 121, 122, 123, 124, 125, 126, 127, 128, 129], "hl": [1, 10, 11], "note": "2 excerpts"}, "lg_send": {"file": "patterns/l2_team.py", "code": "def fan_out(state):\n    return [Send(\"scout\", {\"store\": s, \"query\": state[\"query\"]}) for s in world.STORES]\n\n\ndef scout(inp):\n    store = inp[\"store\"]\n    me = \"scout-\" + store\n    c.msg(\"lead\", me, \"task\", f\"check {store}\")\n    c.status(me, \"active\", \"searching\")\n    ids = world.search_store(store)\n    c.listing(ids, \"checked\")\n    ok = [i for i in ids if world.fits(i)]\n    c.listing([i for i in ids if i not in ok], \"out\")\n    c.listing(ok, \"kept\")\n    reply = c.think(me, f\"You are a scout for {store}. Report which listings match the query.\",\n                    {\"query\": inp[\"query\"], \"matches\": [world.label(i) for i in ok]}, [\"offer\", \"no_offer\"],\n                    offline={\"action\": \"offer\" if ok else \"no_offer\",\n                             \"say\": f\"{len(ok)} match: \" + \", \".join(f\"{world.name(i)} ₹{world.price(i):,}\" for i in ok)\n                                    if ok else \"Nothing here matches.\"})\n    c.status(me, \"done\", f\"{len(ok)} match\" if ok else \"no match\")\n    c.msg(me, \"evaluator\", \"data\", reply[\"say\"])\n    return {\"offers\": ok}", "nums": [41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62], "hl": [1, 4, 21], "note": null}, "lg_cycle": {"file": "patterns/l2_team.py", "code": "# patterns/l2_team.py\ndef after_critic(state):\n    return \"evaluator\" if state.get(\"pick\") in state.get(\"rejected\", []) else \"checkout\"\n\n\ndef after_evaluator(state):\n    return \"critic\" if state.get(\"pick\") else \"checkout\"\n…\ndef build():\n    g = StateGraph(State)\n    for n, f in ((\"lead\", lead), (\"scout\", scout), (\"evaluator\", evaluator), (\"critic\", critic), (\"checkout\", checkout)):\n        g.add_node(n, f)\n    g.add_edge(START, \"lead\")\n    g.add_conditional_edges(\"lead\", fan_out, [\"scout\"])                  # fan out: every store at once\n    g.add_edge(\"scout\", \"evaluator\")                                    # fan in: waits for all scouts\n    g.add_conditional_edges(\"evaluator\", after_evaluator, [\"critic\", \"checkout\"])\n    g.add_conditional_edges(\"critic\", after_critic, [\"evaluator\", \"checkout\"])   # rework loop\n    g.add_edge(\"checkout\", END)\n    return g.compile()", "nums": ["", 105, 106, 107, 108, 109, 110, "", 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138], "hl": [2, 6, 13, 15, 16], "note": "2 excerpts"}, "lg_critic": {"file": "patterns/l2_team.py", "code": "def critic(state):\n    \"\"\"Clean context: the critic sees the pick and the seller register, not how the team got there.\"\"\"\n    pick = state[\"pick\"]\n    c.status(\"critic\", \"active\", \"checking seller\")\n    s = world.seller_check(pick)\n    c.tool(\"critic\", \"seller_check\", {\"listing\": world.name(pick)}, f\"{s['seller']}: {s['note']}\")\n    reply = c.think(\"critic\", \"You are a critic. Reject the pick if the seller is not verified.\",\n                    {\"pick\": world.label(pick), \"seller\": s}, [\"ok\", \"flag\"],\n                    offline={\"action\": \"ok\" if s[\"verified\"] else \"flag\",\n                             \"say\": \"Verified seller. Approved.\" if s[\"verified\"]\n                                    else f\"{s['seller']} is not a verified seller. Pick again.\"})\n    flagged = not s[\"verified\"] or reply[\"action\"] == \"flag\"   # the rule is code; the model can add caution\n    if flagged:\n        c.listing(pick, \"rejected\", s[\"note\"])\n        c.status(\"critic\", \"bad\", \"rejected\")\n        c.msg(\"critic\", \"evaluator\", \"flag\", reply[\"say\"], tone=\"bad\")\n        c.note(\"The critic rejected the unverified reseller: the one Level 1 bought.\", \"bad\")\n        return {\"rejected\": [pick]}\n    c.status(\"critic\", \"done\", \"approved\")\n    c.msg(\"critic\", \"checkout\", \"ok\", reply[\"say\"])\n    return {}", "nums": [82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102], "hl": [4, 5, 11, 13, 14, 17], "note": null}, "lg_hitl": {"file": "lab/guards.py · lab/runner.py", "code": "# lab/guards.py\ndef approve(proposal):\n    return interrupt(proposal) == \"approve\"\n# lab/runner.py\ndef _drive(inp, config, rec, answer, crash_after, graph=None):\n    graph = graph or _graph()\n    latest = {**config, \"configurable\": {k: v for k, v in config[\"configurable\"].items() if k != \"checkpoint_id\"}}\n    human_inputs = 0\n    try:\n        state, killed = stream(graph, inp, config, rec, crash_after, rec.prev or None)\n        if killed:\n            rec.event(\"killed\", recursion_limit=RECURSION_LIMIT)\n            say(\"guard\", {\"action\": \"killed\", \"say\": f\"LangGraph recursion limit ({RECURSION_LIMIT}) hit. \"\n                                                      \"The agents never decided.\"})\n            summary(state, human_inputs, ended=\"[red]Killed by the framework. Nobody decided.[/]\")\n            rec.close(console, state, ended=\"Killed by the framework. Nobody decided.\")\n            return state, rec.dir\n\n        # Guardrail 3: the graph paused at interrupt() and is waiting for a human.\n        snap = graph.get_state(latest)\n        while snap.next and snap.tasks and snap.tasks[0].interrupts:\n            proposal = snap.tasks[0].interrupts[0].value\n            console.print()\n            console.print(f\"[bold white]{'You':>9}[/] [bold]APPROVAL[/]     Buy {proposal['quantity']} × {proposal['item']} \"\n                          f\"for ₹{proposal['price']} from {proposal['store']}? (proposed by {proposal['proposed_by']} agent)\")\n            reply = answer or Prompt.ask(f\"{'':>9} Approve or deny\", choices=[\"approve\", \"deny\"],\n                                         default=\"approve\", console=console)\n            human_inputs += 1\n            rec.event(\"resume\", answer=reply, auto=answer is not None)\n            state, _ = stream(graph, Command(resume=reply), latest, rec, None, state)\n            snap = graph.get_state(latest)\n    except BaseException as e:   # Ctrl+C or a crash: keep whatever was logged so far\n        rec.event(\"error\", type=type(e).__name__, message=str(e))\n        rec.close(console, rec.prev, ended=f\"{type(e).__name__}: {e}\")\n        raise\n    summary(state, human_inputs)\n    rec.close(console, state)\n    return state, rec.dir", "nums": ["", 31, 32, "", 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189], "hl": [2, 18, 20, 21, 29], "note": "2 excerpts"}, "lg_event": {"file": "patterns/l3_event.py", "code": "def run(auto_drop=6.0):\n    \"\"\"Waits for a price drop in the feed. auto_drop: seconds until it drops by itself (None: wait forever).\"\"\"\n    l2.team(\"Watcher\")\n    c.step(\"No prompt. The watcher is subscribed to the price feed with your saved query\" if world.SOURCE[\"kind\"] == \"demo\"\n           else \"No prompt. A schedule wakes the watcher to re-check the live sites\")\n    c.status(\"lead\", \"active\", \"watching the feed\")\n    c.emit(\"waiting\", auto_drop=auto_drop)\n    event = world.wait_for_drop(auto_drop)\n    if event is None:                      # nobody dropped it in time: the feed does it\n        world.drop_price()\n        event = world.wait_for_drop(0)\n    if event is None:\n        c.note(\"Nothing in the stores is under budget. The watcher goes back to sleep.\")\n        return {\"pick\": None, \"answer\": \"Nothing to watch.\"}\n    c.emit(\"price\", id=event[\"id\"], old=event[\"old_price\"], new=event[\"new_price\"])\n    c.step(\"Something changes in the world\")\n    c.msg(\"feed\", \"lead\", \"event\", world.event_text(event))\n    reply = c.think(\"lead\", \"You are a watcher. Decide whether this price change matters for the saved query.\",\n                    {\"event\": event, \"saved_query\": world.GOAL}, [\"trigger\", \"ignore\"],\n                    offline={\"action\": \"trigger\", \"say\": f\"{event['name']} is now ₹{event['new_price']:,}, under \"\n                                                         \"budget. Waking the team.\"} if world.fits(event[\"id\"]) else\n                            {\"action\": \"ignore\", \"say\": f\"{event['name']} doesn't meet the saved query.\"})\n    c.say(\"lead\", reply[\"say\"])\n    if reply[\"action\"] != \"trigger\":\n        c.note(\"The watcher decided it doesn't matter. Back to sleep.\")\n        return {\"pick\": None, \"answer\": reply[\"say\"]}\n    out = l2.build().invoke({\"query\": world.QUERY, \"ask_first\": True})\n    c.step(\"You hear about it only when there is something to decide\")\n    return out", "nums": [17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45], "hl": [7, 10, 26], "note": null}, "lg_llm": {"file": "lab/claude_cli.py · patterns/common.py", "code": "# patterns/common.py\ndef think(agent_id, role, context, actions, offline, fields=None):\n    \"\"\"One LLM call. Offline (or if the model fails) it returns the scripted reply, so the run always finishes.\"\"\"\n    status(agent_id, \"active\", \"thinking…\")\n    reply, tokens = llm.ask(agent_id, role, context, actions, offline=offline, fields=fields)\n    with _lock:\n        stats[\"tokens\"] += tokens\n        stats[\"llm_calls\"] += 1\n    emit(\"tokens\", agent=agent_id, tokens=tokens, total=stats[\"tokens\"], llm=llm.last())\n    return reply\n# lab/claude_cli.py\ndef infer(prompt, schema, model, timeout):\n    \"\"\"Returns (parsed JSON reply, tokens, meta). Raises on any failure; the caller falls back to the script.\"\"\"\n    exe = find_claude()\n    if not exe:\n        raise RuntimeError(\"claude CLI not found. Install Claude Code, or set CLAUDE_BIN.\")\n    env = {k: v for k, v in os.environ.items() if k not in SECRETS}\n    WORK.mkdir(parents=True, exist_ok=True)\n    cmd = [exe, \"-p\", \"--output-format\", \"json\", \"--model\", model or \"sonnet\", \"--tools\", \"\",\n           \"--no-session-persistence\", \"--setting-sources\", \"\", \"--strict-mcp-config\",\n           \"--json-schema\", json.dumps(strict(schema))]\n    start = time.time()\n    proc = subprocess.run(cmd, input=PREFACE + prompt, text=True, encoding=\"utf-8\", errors=\"replace\",\n                          capture_output=True, env=env, timeout=timeout, cwd=WORK)\n    try:\n        result = json.loads(proc.stdout)\n    except ValueError:\n        result = {}\n    if proc.returncode or result.get(\"is_error\") or result.get(\"subtype\") != \"success\":\n        # Never show raw stderr: it can contain local configuration details.\n        raise RuntimeError(f\"claude CLI failed (exit {proc.returncode}). Run `claude` once to log in.\")\n    if result.get(\"permission_denials\"):\n        raise RuntimeError(\"the model tried to use a tool; reply rejected\")\n    reply = result.get(\"structured_output\")\n    if reply is None:\n        reply = json.loads(result.get(\"result\") or \"{}\")\n    usage = result.get(\"usage\", {})\n    # Count our prompt and the model's answer, not the CLI's own cached system prompt (~15k tokens a call),\n    # so token counts compare fairly with the other modes.\n    tokens = len(prompt) // 4 + usage.get(\"output_tokens\", 0)\n    meta = {\"provider\": \"claude_cli\", \"model\": model or \"sonnet\", \"duration_ms\": round((time.time() - start) * 1000),\n            \"output_tokens\": usage.get(\"output_tokens\", 0), \"live\": True}\n    return reply, tokens, meta", "nums": ["", 168, 169, 170, 171, 172, 173, 174, 175, 176, "", 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75], "hl": [4, 20, 31, 33], "note": "2 excerpts"}, "cr_agent": {"file": "crews/kit.py", "code": "def agent(id, role, goal, model, script):\n    \"\"\"id is the node on the page; script() is the offline answer.\"\"\"\n    return Agent(role=role, goal=goal, backstory=BACKSTORY, llm=BridgeLLM(id, model, script),\n                 tools=[], allow_delegation=False, max_iter=2, verbose=False)", "nums": [12, 13, 14, 15], "hl": [2], "note": null}, "cr_task": {"file": "crews/contracts.py · crews/kit.py", "code": "# crews/kit.py\ndef task(description, agent, model, context=(), callback=None, **kw):\n    return Task(description=description, expected_output=f\"Only a schema-valid {model.__name__}; its text is one short sentence\", agent=agent,\n                context=list(context), output_pydantic=model, callback=callback, **kw)\n# crews/contracts.py\nclass Shortlist(Contract):\n    listing_ids: list[str]\n    note: str = Field(description=SHORT)\n\n\nclass Plan(Contract):\n    checks: list[str]\n    note: str = Field(description=SHORT)\n\n\nclass Choice(Contract):\n    listing_id: str\n    reason: str = Field(description=SHORT)", "nums": ["", 18, 19, 20, "", 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24], "hl": [2, 3], "note": "2 excerpts"}, "cr_seq": {"file": "crews/l0_sequential.py", "code": "def build():\n    word, budget = world.keyword(), world.GOAL[\"max_price\"]   # all the developer took from the query\n    found = lambda: world.search_catalog(word)                                         # noqa: E731\n    cheap = lambda: [i for i in found() if world.price(i) <= budget]                   # noqa: E731\n    search = kit.agent(\"search\", \"Search\", f\"List listings whose name contains '{word}'.\", Shortlist,\n                       lambda: Shortlist(listing_ids=found(), note=f\"{len(found())} listings with “{word}”\"))\n    filt = kit.agent(\"filter\", \"Filter\", f\"Keep listings priced at or under ₹{budget:,}.\", Shortlist,\n                     lambda: Shortlist(listing_ids=cheap(), note=f\"{len(cheap())} under ₹{budget:,}\"))\n    pick = kit.agent(\"pick\", \"Pick\", \"Choose the cheapest listing.\", Choice,\n                     lambda: Choice(listing_id=kit.cheapest(cheap()), reason=\"Cheapest listing left.\"))\n\n    def done(me, nxt, state, model):\n        def cb(output):\n            v = kit.value(output, model)\n            if model is Shortlist:\n                c.listing(v.listing_ids, state)\n                c.status(me, \"done\", v.note)\n                c.msg(me, nxt, \"data\", v.note)\n            else:\n                c.listing(v.listing_id, \"pick\", v.reason)\n                c.status(me, \"done\", world.name(v.listing_id))\n                c.msg(me, nxt, \"task\", f\"buy {world.name(v.listing_id)}\")\n        return cb\n\n    t1 = kit.task(f\"Listings: {{listings}}\\nReturn the IDs of listings whose name contains '{word}'.\", search, Shortlist,\n                  callback=done(\"search\", \"filter\", \"checked\", Shortlist))\n    t2 = kit.task(f\"Listings: {{listings}}\\nKeep only the IDs from the previous step priced at or under ₹{budget:,}.\",\n                  filt, Shortlist, context=[t1], callback=done(\"filter\", \"pick\", \"kept\", Shortlist))\n    t3 = kit.task(\"Listings: {listings}\\nReturn the cheapest of the IDs from the previous step.\", pick, Choice,\n                  context=[t2], callback=done(\"pick\", \"checkout\", \"pick\", Choice))\n    return Crew(agents=[search, filt, pick], tasks=[t1, t2, t3], process=Process.sequential, verbose=False)", "nums": [21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51], "hl": [27, 29, 30], "note": null}, "cr_ctx": {"file": "crews/l1_planned.py", "code": "    plan = kit.task(\"Query: {query}\\nTurn it into checks, in order, for these workers: search by type and colour, \"\n                    \"size in stock, price under the budget, pick the cheapest.\", planner, Plan, callback=planned)\n    tasks, prev = [plan], None\n    for name, (agent, text) in workers.items():\n        model = Choice if name == \"pick\" else Shortlist\n        t = kit.task(\"Listings: {listings}\\n\" + text, agent, model, context=[plan] + ([prev] if prev else []),\n                     callback=finished(name))\n        tasks.append(t)\n        prev = t\n    return Crew(agents=[planner] + [a for a, _ in workers.values()], tasks=tasks, process=Process.sequential,\n                verbose=False)", "nums": [76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86], "hl": [5], "note": null}, "cr_async": {"file": "crews/l2_guardrail.py", "code": "    scouts, tasks = [], []\n    for s in world.STORES:\n        a = kit.agent(\"scout-\" + s, \"Scout for \" + s, \"Report which of this store's listings match the query.\",\n                      Shortlist, lambda s=s: Shortlist(listing_ids=matches(s), note=(\n                          f\"{len(matches(s))} match: \" + \", \".join(f\"{world.name(i)} ₹{world.price(i):,}\" for i in matches(s))\n                          if matches(s) else \"Nothing here matches.\")))\n        scouts.append(a)\n        tasks.append(kit.task(\"Query: {query}\\nListings in \" + s + \": {\" + key(s) + \"}\\nReturn the IDs that match \"\n                              \"every requirement in the query.\", a, Shortlist, callback=scout_done(s),\n                              async_execution=True))\n\n    def best():\n        left = [i for s in world.STORES for i in matches(s) if i not in rejected]\n        return Choice(listing_id=kit.cheapest(left), reason=f\"Best offer: {world.label(kit.cheapest(left))}.\")\n\n    evaluator = kit.agent(\"evaluator\", \"Evaluator\", \"Pick the cheapest listing that meets the query.\", Choice, best)\n    tasks.append(kit.task(\"Query: {query}\\nListings: {listings}\\nFrom the scouts' matches, pick the cheapest listing.\",\n                          evaluator, Choice,\n                          context=list(tasks), guardrail=critic, guardrail_max_retries=2))\n    return Crew(agents=scouts + [evaluator], tasks=tasks, process=Process.sequential, verbose=False)", "nums": [68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87], "hl": [9, 18], "note": null}, "cr_guard": {"file": "crews/l2_guardrail.py", "code": "# crews/l2_guardrail.py\n    def critic(output):\n        \"\"\"The guardrail. Clean context: it sees only the pick, and checks the seller register.\"\"\"\n        pick = kit.value(output, Choice).listing_id\n        if pick not in world.LISTINGS:                 # nothing to check: nothing will be bought\n            return True, output\n        c.listing(pick, \"pick\")\n        c.status(\"evaluator\", \"done\", world.name(pick))\n        c.msg(\"evaluator\", \"critic\", \"data\", f\"pick: {world.label(pick)}\")\n        c.status(\"critic\", \"active\", \"checking seller\")\n        s = world.seller_check(pick)\n        c.tool(\"critic\", \"seller_check\", {\"listing\": world.name(pick)}, f\"{s['seller']}: {s['note']}\")\n        if not s[\"verified\"]:\n            rejected.append(pick)\n            c.listing(pick, \"rejected\", s[\"note\"])\n            c.status(\"critic\", \"bad\", \"rejected\")\n            c.msg(\"critic\", \"evaluator\", \"flag\", f\"{s['seller']} is not a verified seller. Pick again.\", tone=\"bad\")\n            c.note(\"The guardrail failed, so CrewAI re-runs the evaluator with the critic's feedback.\", \"bad\")\n            return False, (f\"Listing {pick} is sold by {s['seller']}, which is not a verified seller ({s['note']}). \"\n                           \"Choose a different listing.\")\n        c.status(\"critic\", \"done\", \"approved\")\n        c.msg(\"critic\", \"checkout\", \"ok\", \"Verified seller. Approved.\")\n        return True, output\n…\n    evaluator = kit.agent(\"evaluator\", \"Evaluator\", \"Pick the cheapest listing that meets the query.\", Choice, best)\n    tasks.append(kit.task(\"Query: {query}\\nListings: {listings}\\nFrom the scouts' matches, pick the cheapest listing.\",\n                          evaluator, Choice,\n                          context=list(tasks), guardrail=critic, guardrail_max_retries=2))", "nums": ["", 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, "", 83, 84, 85, 86], "hl": [0, 2, 5, 17, 18, 22, 27], "note": "2 excerpts"}, "cr_flow": {"file": "crews/l3_flow.py", "code": "class PriceWatch(Flow[Watch]):\n    @start()\n    def wait_for_price(self):\n        c.status(\"lead\", \"active\", \"watching the feed\")\n        c.emit(\"waiting\", auto_drop=self.state.auto_drop)\n        event = world.wait_for_drop(self.state.auto_drop)\n        if event is None:                      # nobody dropped it in time: the feed does it\n            world.drop_price()\n            event = world.wait_for_drop(0)\n        if event is None:\n            c.note(\"Nothing in the stores is under budget. The watcher goes back to sleep.\")\n            return\n        self.state.event = event\n        c.emit(\"price\", id=event[\"id\"], old=event[\"old_price\"], new=event[\"new_price\"])\n        c.step(\"Something changes in the world\")\n        c.msg(\"feed\", \"lead\", \"event\", world.event_text(event))\n\n    @router(wait_for_price)\n    def does_it_matter(self):\n        e = self.state.event\n        if not e:\n            return \"ignore\"\n        c.status(\"lead\", \"active\", \"thinking…\")\n        answer, tokens = llm.structured(\n            \"lead\", f\"You are a watcher. Saved query: {world.QUERY}. Price change: {e['name']} \"\n                    f\"₹{e['old_price']} → ₹{e['new_price']}. Does it matter? action: trigger or ignore.\",\n            Decision.model_json_schema(),\n            lambda: {\"action\": \"trigger\", \"reason\": f\"{e['name']} is now ₹{e['new_price']:,}, under budget. \"\n                                                    \"Waking the team.\"} if world.fits(e[\"id\"]) else\n                    {\"action\": \"ignore\", \"reason\": f\"{e['name']} doesn't meet the saved query.\"})\n        c.counted(\"lead\", tokens)\n        d = Decision.model_validate(answer)\n        c.say(\"lead\", d.reason)\n        return \"trigger\" if d.action == \"trigger\" else \"ignore\"\n\n    @listen(\"trigger\")\n    def run_team(self):\n        out = l2.run_team(ask_first=True)\n        self.state.pick, self.state.answer = out[\"pick\"], out[\"answer\"]", "nums": [30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68], "hl": [1, 17, 33, 35], "note": null}, "cr_llm": {"file": "crews/llm.py", "code": "class BridgeLLM(BaseLLM):\n    def __init__(self, agent_id, output_model, script):\n        super().__init__(model=\"claude-cli/bridge\", temperature=0)\n        self.agent_id, self.output_model, self.script = agent_id, output_model, script\n\n    def call(self, messages, tools=None, callbacks=None, available_functions=None, **kwargs):\n        if tools:\n            raise RuntimeError(\"This demo does not allow model tools\")\n        transcript = messages if isinstance(messages, str) else json.dumps(messages, ensure_ascii=False, default=str)\n        c.status(self.agent_id, \"active\", \"thinking…\")\n        offline = lambda: self.script().model_dump()   # noqa: E731\n        answer, tokens = llm.structured(self.agent_id, transcript + \"\\nReturn only JSON conforming to the supplied \"\n                                        \"schema. Do not use Thought/Action prose.\",\n                                        self.output_model.model_json_schema(), offline)\n        try:\n            value = self.output_model.model_validate(answer)\n        except ValueError:                 # schema-valid JSON can still break a rule pydantic checks\n            value = self.output_model.model_validate(offline())\n        c.counted(self.agent_id, tokens)\n        return value.model_dump_json()\n\n    def supports_function_calling(self):\n        return False\n\n    def supports_stop_words(self):\n        return False\n\n    def get_context_window_size(self):\n        return 100_000", "nums": [15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43], "hl": [0, 5, 11, 15, 17], "note": null}, "cr_hier": {"file": "CrewAI · not used in this repo", "note": "standard shape", "code": "from crewai import Agent, Crew, Process, Task\n\nsearch = Agent(role=\"Search\", goal=\"Find matching listings\", backstory=\"…\")\nsize = Agent(role=\"Size\", goal=\"Check the size is in stock\", backstory=\"…\")\nseller = Agent(role=\"Seller check\", goal=\"Verify the seller\", backstory=\"…\")\n\ncrew = Crew(\n    agents=[search, size, seller],\n    tasks=[Task(description=\"Buy black running shoes, size 9, under ₹1,000\",\n                expected_output=\"One verified listing\")],\n    process=Process.hierarchical,     # a manager plans and delegates at run time\n    manager_llm=\"claude-sonnet-...\",  # needs a model with tool calling\n)\nresult = crew.kickoff()", "hl": [10, 11], "nums": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]}}/*END*/;
+const KW=/("""[\s\S]*?"""|"(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'|#[^\n]*|\b(?:def|class|return|if|else|elif|for|in|import|from|not|and|or|with|lambda|None|True|False|yield|try|except|raise|async|await)\b|@\w+)/g;
+function hlLine(src){const e=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;');let o='',last=0;
+  for(const m of src.matchAll(KW)){const t=m[0],c=t.startsWith('"""')?'d':t[0]==='#'?'c':t[0]==='@'?'f':/^["']/.test(t)?'s':'k';o+=e(src.slice(last,m.index))+`<span class="${c}">${e(t)}</span>`;last=m.index+t.length}
+  return o+e(src.slice(last))}
+// mini diagram: nodes {id:[x,y,role]}, edges [[a,b,dashed]], hot node/edge ids, flows [[a,b,t0,t1]]
+const DC={a:'var(--agent)',u:'var(--user)',i:'var(--infra)',c:'var(--critic)',e:'var(--event)',s:'var(--sup)',x:'var(--bad)'};
+function mini(D){const s=document.createElementNS(NS,'svg');s.setAttribute('viewBox','0 0 260 136');s.setAttribute('class','mini');
+  const path=(a,b)=>{const A=D.n[a],B=D.n[b],dx=B[0]-A[0],dy=B[1]-A[1],L=Math.hypot(dx,dy),ux=dx/L,uy=dy/L;return `M${A[0]+ux*13},${A[1]+uy*13} L${B[0]-ux*13},${B[1]-uy*13}`};
+  (D.e||[]).forEach(([a,b,d])=>el('path',{d:path(a,b),class:'e'+(d?' d':'')+((D.hot||[]).includes(a+'>'+b)?' hot':'')},s));
+  for(const k in D.n){const [x,y,r,lab]=D.n[k];const g=el('g',{},s);g.style.setProperty('--c',DC[r||'a']);
+    el('circle',{cx:x,cy:y,r:12,class:'n'+((D.hot||[]).includes(k)?' hot':'')},g);el('text',{x,y:y+24},g).textContent=lab||k;}
+  (D.f||[]).forEach(([a,b,t0,t1])=>{const c=el('circle',{r:3.4,class:'dot',opacity:0},s);c.style.setProperty('--c','var(--accent)');
+    el('animateMotion',{dur:'3s',repeatCount:'indefinite',path:path(a,b),keyPoints:'0;0;1;1',keyTimes:`0;${t0};${t1};1`,calcMode:'linear'},c);
+    el('animate',{attributeName:'opacity',dur:'3s',repeatCount:'indefinite',values:'0;0;1;1;0;0',keyTimes:`0;${Math.max(0,t0-.001)};${t0};${t1};${Math.min(1,t1+.001)};1`},c)});
+  return s}
+const D2={pipe:{n:{START:[20,60,'u'],search:[80,60],filter:[140,60],pick:[200,60],END:[245,60,'u']},e:[['START','search'],['search','filter'],['filter','pick'],['pick','END']]},
+  hub:{n:{planner:[70,60,'s'],worker:[190,60],checkout:[190,105,'i']},e:[['planner','worker'],['worker','planner'],['planner','checkout']]},
+  fan:{n:{lead:[30,60],'scout A':[115,20],'scout B':[115,60],'scout C':[115,100],evaluator:[200,60]},e:[['lead','scout A'],['lead','scout B'],['lead','scout C'],['scout A','evaluator'],['scout B','evaluator'],['scout C','evaluator']]},
+  loop:{n:{evaluator:[60,60],critic:[160,60,'c'],checkout:[235,60,'i']},e:[['evaluator','critic'],['critic','evaluator'],['critic','checkout']]},
+  state:{n:{state:[130,60,'i','State'],'scout A':[40,20],'scout B':[220,20],evaluator:[40,100],critic:[220,100,'c']},e:[['scout A','state'],['scout B','state'],['state','evaluator'],['state','critic']]},
+  hitl:{n:{buyer:[40,60],interrupt:[130,60,'s'],you:[130,108,'u'],checkout:[220,60,'i']},e:[['buyer','interrupt'],['interrupt','you',1],['you','interrupt',1],['interrupt','checkout']]},
+  event:{n:{feed:[30,60,'e'],watcher:[105,60],'L2 graph':[185,60],you:[240,60,'u']},e:[['feed','watcher'],['watcher','L2 graph'],['L2 graph','you']]},
+  llm:{n:{node:[30,60],'think()':[100,60,'s'],'llm.ask':[165,60],claude:[235,60,'c','claude -p']},e:[['node','think()'],['think()','llm.ask'],['llm.ask','claude']]},
+  crew:{n:{agent:[40,60],task:[120,60,'s'],crew:[200,60,'i']},e:[['agent','task'],['task','crew']]},
+  ctx:{n:{plan:[40,60,'s'],search:[110,25],size:[110,95],pick:[200,60]},e:[['plan','search'],['plan','size'],['plan','pick'],['search','size'],['size','pick']]},
+  flow:{n:{'@start':[35,60,'e','@start'],'@router':[115,60,'s','@router'],'@listen':[200,30,'a','@listen'],ignore:[200,95,'i','ignore']},e:[['@start','@router'],['@router','@listen'],['@router','ignore',1]]},
+  hier:{n:{manager:[50,60,'s'],search:[160,20],size:[180,60],seller:[160,100]},e:[['manager','search'],['manager','size'],['manager','seller']]}};
+const hotflow=(d,hot,f)=>({...D2[d],hot,f});
+const TOURS={
+ langgraph:[
+  {id:'lg_state',t:'State: one shared memory',s:'TypedDict + reducers',d:hotflow('state',['state','scout A>state','scout B>state'],[['scout A','state',0,.35],['scout B','state',.05,.4],['state','evaluator',.55,.85]]),
+   x:`<p>A LangGraph run carries <b>one state object</b>, here a <code>TypedDict</code>. Nodes read it and return the keys they change.</p>
+      <ul><li><b>Reducers</b> say how parallel writes merge: <code>Annotated[list, operator.add]</code> appends, so three scouts writing <code>offers</code> at once lose nothing.</li>
+      <li>Keys without a reducer are simply overwritten: keep one writer for those.</li></ul>`},
+  {id:'lg_node',t:'Nodes are plain functions',s:'state in, update out',d:hotflow('loop',['evaluator']),
+   x:`<p>A node is a Python function: it gets the state, does its work and <b>returns only what it changes</b>.</p>
+      <ul><li>Some nodes call a model (<code>c.think(…)</code>); others are plain code. That choice is yours per step, which is why a LangGraph pipeline can be cheap and deterministic.</li>
+      <li>Here the evaluator filters out rejected picks in code and asks the model to choose.</li></ul>`},
+  {id:'lg_edges',t:'Edges: sequential handoff',s:'add_node · add_edge · compile',d:hotflow('pipe',['START>search','search>filter','filter>pick','pick>END'],[['START','search',0,.18],['search','filter',.22,.42],['filter','pick',.46,.66],['pick','END',.7,.9]]),
+   x:`<p><b>Pattern 1 in code.</b> Register nodes, wire them with <code>add_edge</code>, <code>compile()</code>. The order is fixed at build time.</p>
+      <ul><li><code>START</code> and <code>END</code> are the graph’s entry and exit.</li><li>Each node sees the whole state, but only the keys earlier nodes wrote: what nobody wrote doesn’t exist.</li></ul>`},
+  {id:'lg_route',t:'Conditional edges: the router',s:'hub and spoke, decided at run time',d:hotflow('hub',['planner>worker','worker>planner'],[['planner','worker',0,.3],['worker','planner',.4,.7]]),
+   x:`<p><code>add_conditional_edges(source, route, targets)</code>: after <code>source</code>, call <code>route(state)</code> and go wherever it says.</p>
+      <ul><li>The planner loops through the plan it wrote: worker → planner → worker… until <code>route</code> returns <code>"checkout"</code>.</li>
+      <li>This is the <b>hierarchical</b> shape in LangGraph: a supervisor node plus a router. The planner’s context sees every report.</li></ul>`},
+  {id:'lg_send',t:'Send: fan out at run time',s:'parallel + selective context',d:hotflow('fan',['lead>scout A','lead>scout B','lead>scout C'],[['lead','scout A',0,.3],['lead','scout B',0,.3],['lead','scout C',0,.3],['scout A','evaluator',.45,.75],['scout B','evaluator',.5,.8],['scout C','evaluator',.55,.85]]),
+   x:`<p>Return a list of <code>Send("scout", payload)</code> from a router and LangGraph runs <b>one scout per item, in parallel</b>. One plain edge, <code>scout → evaluator</code>, joins them: the evaluator runs once all scouts finish.</p>
+      <ul><li><b>Selective context:</b> each scout gets only its payload, <code>{"store", "query"}</code>, not the whole state.</li><li>The number of scouts is decided at run time: add a store and you get another scout.</li></ul>`},
+  {id:'lg_cycle',t:'Cycles: the critic loop',s:'conditional edges back',d:hotflow('loop',['critic>evaluator'],[['evaluator','critic',0,.3],['critic','evaluator',.4,.7]]),
+   x:`<p>Graphs can loop. After the critic, <code>after_critic</code> sends a rejected pick <b>back to the evaluator</b>; an approved one goes to checkout.</p>
+      <ul><li>The loop ends because the evaluator excludes rejected picks, and LangGraph’s recursion limit stops a runaway.</li></ul>`},
+  {id:'lg_critic',t:'A critic with a clean context',s:'what the reviewer sees',d:hotflow('loop',['critic']),
+   x:`<p>The critic is <b>given only the pick and the seller register</b>, not how the team got there. That’s what made it catch the fake in the simulation.</p>
+      <ul><li>The rule (a verified seller) is code; the model can only add caution, never overrule it.</li></ul>`},
+  {id:'lg_hitl',t:'Human approval: interrupt + checkpoints',s:'pause, save, resume',d:hotflow('hitl',['interrupt'],[['buyer','interrupt',0,.25],['interrupt','you',.35,.55],['you','interrupt',.65,.85]]),
+   x:`<p><code>interrupt(proposal)</code> <b>pauses the graph</b> and returns control to your code. With a checkpointer the state is on disk, so the process can even stop and come back.</p>
+      <ul><li>Resume with <code>graph.stream(Command(resume="approve"), config)</code>: the node continues where it paused.</li>
+      <li>The same checkpoints give you <b>resume after a crash</b> and <b>rewind</b> to any earlier step (<code>python run.py --history</code>, <code>--rewind N</code>).</li></ul>`},
+  {id:'lg_event',t:'Event-driven: who calls invoke()',s:'the trigger is outside the graph',d:hotflow('event',['feed>watcher'],[['feed','watcher',0,.3],['watcher','L2 graph',.4,.7],['L2 graph','you',.75,.95]]),
+   x:`<p>A graph doesn’t listen by itself: <b>something calls it</b>. Here a watcher waits on the price feed, asks the model whether the change matters, then runs the Level 2 graph unchanged.</p>`},
+  {id:'lg_llm',t:'One model call, any model',s:'think() → the Claude bridge',d:hotflow('llm',['think()>llm.ask','llm.ask>claude'],[['node','think()',0,.25],['think()','llm.ask',.3,.55],['llm.ask','claude',.6,.85]]),
+   x:`<p>Every node calls the model through <code>think()</code>: one place to count tokens, switch models per run, and fall back to a scripted answer if the model fails.</p>
+      <ul><li>With <code>LAB_LLM=claude</code>, <code>claude_cli.infer</code> runs <code>claude -p</code> with a <b>JSON schema</b>, no tools and your saved login.</li></ul>`}],
+ crewai:[
+  {id:'cr_agent',t:'Agent: role, goal, backstory',s:'who does the work',d:hotflow('crew',['agent']),
+   x:`<p>An <b>Agent</b> is a role with a goal and a backstory, plus the <code>llm</code> it thinks with. CrewAI turns these into the agent’s prompt.</p>
+      <ul><li><code>allow_delegation=False</code>, <code>tools=[]</code>, <code>max_iter=2</code>: bounded on purpose for a demo.</li></ul>`},
+  {id:'cr_task',t:'Task: what to do, what to return',s:'description · expected_output · output_pydantic',d:hotflow('crew',['task']),
+   x:`<p>A <b>Task</b> is the unit of work: a description, the expected output and the agent that does it.</p>
+      <ul><li><code>output_pydantic=Choice</code> makes CrewAI validate the answer against a typed contract before the next task sees it.</li></ul>`},
+  {id:'cr_seq',t:'Crew + Process.sequential',s:'sequential handoff',d:hotflow('pipe',['search>filter','filter>pick'],[['START','search',0,.18],['search','filter',.22,.42],['filter','pick',.46,.66]]),
+   x:`<p><b>Pattern 1 in CrewAI.</b> A <code>Crew</code> runs its tasks in order with <code>Process.sequential</code>; each task’s output becomes the next one’s context.</p>
+      <ul><li>Difference from LangGraph: every task is an agent turn, so even a fixed pipeline spends a model call per step (3 here, versus 1).</li></ul>`},
+  {id:'cr_ctx',t:'context: selective context',s:'which outputs a task sees',d:hotflow('ctx',['plan>search','plan>size','plan>pick'],[['plan','search',0,.25],['plan','size',.1,.35],['plan','pick',.2,.45]]),
+   x:`<p><code>context=[…]</code> lists exactly <b>which earlier tasks’ outputs a task receives</b>. Here every worker gets the plan plus the previous worker’s result, nothing else.</p>
+      <ul><li>The task list itself is fixed when the crew is built: the plan shapes the work, it can’t add a worker. LangGraph’s planner chose workers at run time.</li></ul>`},
+  {id:'cr_async',t:'async_execution: fan out',s:'parallel tasks, joined by context',d:hotflow('fan',['lead>scout A','lead>scout B','lead>scout C'],[['lead','scout A',0,.3],['lead','scout B',0,.3],['lead','scout C',0,.3],['scout A','evaluator',.45,.75],['scout B','evaluator',.5,.8],['scout C','evaluator',.55,.85]]),
+   x:`<p>One flag, <code>async_execution=True</code>, runs a task in parallel. The evaluator’s <code>context=list(tasks)</code> is the fan-in: it waits for all of them.</p>
+      <ul><li>Each scout task’s description carries only its own store: selective context again.</li></ul>`},
+  {id:'cr_guard',t:'Guardrail: retry with feedback',s:'the critic loop in one argument',d:hotflow('loop',['critic>evaluator'],[['evaluator','critic',0,.3],['critic','evaluator',.4,.7]]),
+   x:`<p>A <b>guardrail</b> checks a task’s output. Return <code>(False, "why")</code> and CrewAI <b>re-runs the same agent with that feedback</b>, up to <code>guardrail_max_retries</code>. Return <code>(True, output)</code> to accept.</p>
+      <ul><li>The whole critic loop that took two conditional edges in LangGraph is one argument here.</li><li>A guardrail can also be a sentence, checked by an LLM.</li></ul>`},
+  {id:'cr_flow',t:'Flow: event-driven steps',s:'@start · @router · @listen',d:hotflow('flow',['@start>@router','@router>@listen'],[['@start','@router',0,.35],['@router','@listen',.45,.8]]),
+   x:`<p>A <b>Flow</b> is CrewAI’s layer for events and branching. Methods run when the methods they listen to finish; a <code>@router</code> returns the name of the next branch.</p>
+      <ul><li>Flow state is a pydantic model (<code>self.state</code>), shared by every step: the blackboard pattern.</li></ul>`},
+  {id:'cr_llm',t:'BaseLLM: the Claude bridge',s:'any model behind an agent',d:hotflow('llm',['node>think()'],[['node','think()',0,.3],['think()','llm.ask',.35,.6],['llm.ask','claude',.65,.9]]),
+   x:`<p>Subclass <code>BaseLLM</code> and CrewAI will call your <code>call(messages)</code> for every agent turn. This one sends the transcript and the task’s JSON schema to <code>claude -p</code> (no tools, saved login) and validates the answer with pydantic.</p>`},
+  {id:'cr_hier',t:'Process.hierarchical',s:'a manager delegates',d:hotflow('hier',['manager>search','manager>size','manager>seller'],[['manager','search',0,.25],['manager','size',.35,.6],['manager','seller',.7,.95]]),
+   x:`<p>With <code>Process.hierarchical</code> CrewAI adds a <b>manager</b> that decides at run time which agent does what, delegates through tools, and checks the results.</p>
+      <ul><li>Needs <code>manager_llm</code> (or <code>manager_agent</code>) with tool calling. The demo’s Claude bridge allows no tools, so the crews here use sequential tasks; this snippet is the standard shape, not repo code.</li></ul>`},
+  {id:'cmp',t:'Side by side',s:'measured on the same query',d:null,x:''}]};
+const CMP=`<h3>LangGraph and CrewAI, same patterns</h3>
+ <table class="cmp"><thead><tr><th>Pattern</th><th>LangGraph</th><th>CrewAI</th></tr></thead><tbody>
+ <tr><td>Sequential</td><td><code>add_edge</code></td><td><code>Process.sequential</code></td></tr>
+ <tr><td>Selective context</td><td><code>Send</code> payload, state keys</td><td><code>context=[…]</code></td></tr>
+ <tr><td>Hierarchical</td><td>supervisor node + <code>add_conditional_edges</code></td><td><code>Process.hierarchical</code> + <code>manager_llm</code></td></tr>
+ <tr><td>Fan-out / fan-in</td><td><code>Send</code> + one join edge + reducer</td><td><code>async_execution=True</code> + <code>context</code></td></tr>
+ <tr><td>Critic loop</td><td>two conditional edges</td><td><code>guardrail=…, guardrail_max_retries</code></td></tr>
+ <tr><td>Shared state</td><td>State + reducers</td><td>Flow state (pydantic)</td></tr>
+ <tr><td>Event-driven</td><td>your code calls <code>invoke()</code></td><td><code>Flow</code>: <code>@start</code> / <code>@router</code> / <code>@listen</code></td></tr>
+ <tr><td>Human in the loop</td><td><code>interrupt()</code> + checkpointer</td><td><code>human_input=True</code>, <code>@human_feedback</code></td></tr>
+ <tr><td>Checkpoints</td><td>every step, resume, rewind</td><td><code>Crew(checkpoint=…)</code>, <code>from_checkpoint</code>, <code>fork()</code></td></tr>
+ </tbody></table>
+ <table class="cmp" style="margin-top:12px"><thead><tr><th>Measured</th><th class="n">L0</th><th class="n">L1</th><th class="n">L2</th><th class="n">L3</th></tr></thead><tbody>
+ <tr><td>LLM calls · LangGraph</td><td class="n">1</td><td class="n">2</td><td class="n">7</td><td class="n">8</td></tr>
+ <tr><td>LLM calls · CrewAI</td><td class="n">3</td><td class="n">5</td><td class="n">5</td><td class="n">6</td></tr>
+ <tr><td>Claude haiku · LangGraph</td><td class="n">11 s</td><td class="n">12 s</td><td class="n">34 s</td><td class="n">43 s</td></tr>
+ <tr><td>Claude haiku · CrewAI</td><td class="n">25 s</td><td class="n">44 s</td><td class="n">25 s</td><td class="n">38 s</td></tr></tbody></table>
+ <p style="margin-top:10px">Both buy the same shoes: 2/4, 3/4, 4/4, 4/4 on the demo stores. <b>LangGraph</b> gives you the control flow, and steps can be plain code. <b>CrewAI</b> gives you roles, typed tasks and retries out of the box, and every step is an agent turn.</p>`;
+
+function tour(root,name){const steps=TOURS[name];
+  root.innerHTML='<nav class="tsteps"></nav><div class="codebox"><div class="file"><b></b><span></span></div><pre class="code"></pre></div><div class="explain"></div>';
+  const nav=root.querySelector('.tsteps');
+  steps.forEach((s,i)=>{const b=document.createElement('button');b.className='tstep';b.innerHTML=`<b>${i+1}</b><span>${esc(s.t)}</span><small>${esc(s.s)}</small>`;b.onclick=()=>show2(i);nav.append(b)});
+  function show2(i){const s=steps[i];nav.querySelectorAll('.tstep').forEach((b,j)=>b.setAttribute('aria-current',j===i));
+    const ex=root.querySelector('.explain'),box=root.querySelector('.codebox');
+    if(s.id==='cmp'){box.hidden=true;ex.innerHTML=CMP;root.style.gridTemplateColumns='230px minmax(0,1fr)';return}
+    root.style.gridTemplateColumns='';box.hidden=false;
+    const C=CODE[s.id]||{file:'(missing)',start:1,code:'',hl:[]};
+    box.querySelector('.file b').textContent=C.file;const ns=(C.nums||[]).filter(Number);box.querySelector('.file span').textContent=C.note||(ns.length?`lines ${ns[0]}–${ns[ns.length-1]}`:'');
+    box.querySelector('pre').innerHTML=C.code.split('\n').map((l,j)=>`<span class="ln${(C.hl||[]).includes(j)?' hl':''}" data-n="${C.nums?C.nums[j]:C.start+j}">${hlLine(l)||' '}</span>`).join('');
+    box.querySelector('pre').scrollTop=0;
+    ex.innerHTML=`<h3>${esc(s.t)}</h3>${s.x}`;
+    if(s.d){const rt=document.createElement('div');rt.className='rt';rt.append(mini(s.d));ex.append(rt)}}
+  show2(0)}
+document.querySelectorAll('.tour').forEach(t=>tour(t,t.dataset.tour));
+
+// LangGraph and CrewAI explained: five tabs above each code tour. ←/→ move between tabs when one has focus.
+document.querySelectorAll('.cx').forEach(cx=>{
+  const tabs=[...cx.querySelectorAll('[role=tab]')],panes=[...cx.querySelectorAll('.pane')];
+  function pick(p,focus){tabs.forEach(t=>{const on=t.dataset.p===p;t.setAttribute('aria-selected',on);t.tabIndex=on?0:-1;if(on&&focus)t.focus()});
+    panes.forEach(x=>x.hidden=x.dataset.p!==p)}
+  tabs.forEach((t,i)=>{t.onclick=()=>pick(t.dataset.p);
+    t.onkeydown=e=>{const d=e.key==='ArrowRight'?1:e.key==='ArrowLeft'?-1:0;if(!d)return;e.preventDefault();e.stopPropagation();pick(tabs[(i+d+tabs.length)%tabs.length].dataset.p,true)}});
+  pick('what')});
+
+// ================================================================= theme: Dark → Light → System, remembered per browser
+const THEMES=['dark','light','system'];
+const store={get:k=>{try{return localStorage.getItem(k)}catch{return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch{}}};
+let THEME=new URLSearchParams(location.search).get('theme')||store.get('talk-theme')||'dark';
+const resolved=()=>THEME==='system'?(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'):THEME;
+function applyTheme(){document.documentElement.dataset.theme=THEME;
+  $('#theme').textContent='Theme: '+THEME[0].toUpperCase()+THEME.slice(1);
+  const f=document.querySelector('.demo iframe');if(f&&f.src)f.src=demoUrl()}   // the live demo reloads in the new theme
+$('#theme').onclick=()=>{THEME=THEMES[(THEMES.indexOf(THEME)+1)%3];store.set('talk-theme',THEME);applyTheme()};
+matchMedia('(prefers-color-scheme: light)').addEventListener('change',()=>{if(THEME==='system')applyTheme()});
+
+// ================================================================= 4 · live demo (served by python app.py)
+const QS=new URLSearchParams(location.search),PORT=QS.get('live')||8701;
+const demoUrl=()=>`http://127.0.0.1:${PORT}/?embed=1&theme=${resolved()}`;
+function loadDemo(force){const d=$('.demo'),f=d.querySelector('iframe'),off=d.querySelector('.off');if(f.src&&!force)return;
+  const url=demoUrl();
+  fetch(url,{mode:'no-cors',cache:'no-store'}).then(()=>{f.src=url;f.hidden=false;off.hidden=true}).catch(()=>{f.hidden=true;off.hidden=false})}
+document.querySelector('.demo .retry').onclick=()=>loadDemo(true);
+// The embedded demo posts its content height; size the frame to it so the whole page scrolls as one.
+addEventListener('message',e=>{const f=document.querySelector('.demo iframe');
+  if(e.source===f.contentWindow&&e.data&&e.data.type==='demo-height')f.style.height=Math.max(400,Math.ceil(e.data.h))+'px'});
+
+// ================================================================= sections
+const SECS=[...document.querySelectorAll('section[data-sec]')];let SEC=null,STARTED=false;
+SECS.forEach((s,i)=>{const b=document.createElement('button');b.innerHTML=`<b>${i+1}</b>`;b.append(s.dataset.title);b.dataset.sec=s.dataset.sec;b.onclick=()=>show(s.dataset.sec);$('#secnav').append(b)});
+function show(id){SEC=id;SECS.forEach(s=>s.hidden=s.dataset.sec!==id);
+  document.querySelectorAll('#secnav button').forEach(b=>b.setAttribute('aria-current',b.dataset.sec===id));
+  document.body.classList.toggle('wide',id==='live');
+  if(id==='patterns'&&!STARTED){STARTED=true;go(cur)}
+  if(id==='live')loadDemo();
+  history.replaceState(null,'','#'+id+location.search.replace(/^\?/,'?'));scrollTo(0,0)}
+function move(d){const i=SECS.findIndex(s=>s.dataset.sec===SEC);show(SECS[Math.min(SECS.length-1,Math.max(0,i+d))].dataset.sec)}
+document.addEventListener('keydown',e=>{if(e.target.closest('input,select,textarea'))return;
+  if(e.key==='PageDown'){e.preventDefault();move(1)}else if(e.key==='PageUp'){e.preventDefault();move(-1)}
+  else if(SEC==='patterns'&&!e.target.closest('button')){if(e.key===' '){e.preventDefault();$('#play').click()}
+    else if(e.key==='ArrowRight')go(Math.min(cur+1,SIMS.length-1));else if(e.key==='ArrowLeft')go(Math.max(cur-1,0));
+    else if(e.key==='r'||e.key==='R')go(cur);else if(e.key==='n'||e.key==='N')$('#stepb').click();
+    else if(e.key==='+'||e.key==='=')nudge(1);else if(e.key==='-'||e.key==='_')nudge(-1)}});
+applyTheme();
+const start=location.hash.slice(1).split('?')[0];
+show(SECS.some(s=>s.dataset.sec===start)?start:'patterns');
+</script>
+</body>
+</html>

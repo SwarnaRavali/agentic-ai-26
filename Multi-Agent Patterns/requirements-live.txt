@@ -1,0 +1,4 @@
+# Optional: live listings from Amazon.in, Flipkart and Myntra (patterns/live.py).
+# Playwright drives your installed Chrome (channel="chrome"), so no browser download is needed.
+-r requirements.txt
+playwright==1.55.0
