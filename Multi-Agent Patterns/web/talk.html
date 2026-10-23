@@ -180,7 +180,7 @@ svg.g{display:block;width:100%;height:auto}
 .bub.warn rect{stroke:var(--accent)} .bub.warn text{fill:var(--accent)}
 .bub{animation:fadein .2s forwards}
 .wm{fill:var(--muted);font:600 9.5px var(--f-mono);letter-spacing:.12em}
-.phase{fill:var(--accent);font:700 10px var(--f-mono);letter-spacing:.1em}
+.phase{fill:var(--accent);font:700 10px var(--f-mono);letter-spacing:.1em} .phase.good{fill:var(--ok)} .phase.bad{fill:var(--bad)}
 
 /* ---------------------------------------------------------------- 2 + 3 · code tours */
 .tour{display:grid;grid-template-columns:230px minmax(0,1.35fr) minmax(0,1fr);gap:14px;align-items:start}
@@ -293,7 +293,7 @@ pre.term .c{color:var(--code-c)} pre.term .p{color:var(--ok)}
     <div>
       <span class="kicker">1 · Coordination patterns, simulated</span>
       <h2 class="h2">How agents hand work to each other</h2>
-      <p class="lede">Eight ways agents hand work to each other, with no particular task: roles, messages, and in the right-hand panel <b>what each agent gets to see</b>. What an agent sees decides what it can get right.</p>
+      <p class="lede">Eight ways agents hand work to each other, each on an everyday task. Watch <b>how it works</b> first, then <b>where it breaks</b>. The right-hand panel shows <b>what each agent gets to see</b>: what an agent sees decides what it can get right.</p>
     </div>
   </div>
   <nav class="pick" id="pick" aria-label="Pattern"></nav>
@@ -302,11 +302,13 @@ pre.term .c{color:var(--code-c)} pre.term .p{color:var(--ok)}
     <button class="btn" id="play" title="Pause or play (Space)">❚❚ Pause</button>
     <button class="btn ghost" id="stepb" title="Play to the next step, then pause (N)">Step ⏭</button>
     <span class="sep"></span>
+    <span class="seg" id="parts" role="group" aria-label="Part"><button data-p="good" title="The pattern doing its job (B toggles)">✓ How it works</button><button data-p="bad" title="The same pattern when it goes wrong (B toggles)">⚠ Where it breaks</button></span>
+    <span class="sep"></span>
     <span class="plabel">Speed</span>
     <span class="seg" id="speeds" role="group" aria-label="Speed"></span>
     <span class="sep"></span>
     <label class="auto"><input type="checkbox" id="auto"> Auto-play all</label>
-    <span class="keys">Space pause · N step · R restart · ←/→ pattern · +/− speed</span>
+    <span class="keys">Space pause · N step · R restart · B works/breaks · ←/→ pattern · +/− speed</span>
   </div>
   <div class="sim">
     <div class="side" style="gap:14px">
@@ -341,7 +343,6 @@ pre.term .c{color:var(--code-c)} pre.term .p{color:var(--ok)}
     </div>
   </div>
   <div class="pcard" id="pcard"></div>
-  <p class="lede" style="margin-top:4px">Next: the same patterns in code, on one real task: <b>“Black running shoes, size 9, under ₹1,000”</b> &nbsp;<button class="btn ghost" onclick="show('langgraph')">LangGraph in code →</button></p>
 </section>
 
 <!-- ============================================================ 2 · LANGGRAPH -->
@@ -638,10 +639,16 @@ function ctx(k){
     if(o.dashed){p.setAttribute('stroke-dasharray','4 4');p.removeAttribute('pathLength')}E[a+'|'+b]={p,a,b}};
   const getE=(a,b)=>E[a+'|'+b]||E[b+'|'+a];
   const hot=(a,b,on=true)=>{const e=getE(a,b);e&&e.p.classList.toggle('hot',on)};
+  // speech bubbles sit above the node, or below it near the top edge (clear of the title and phase);
+  // a new bubble replaces any bubble it would overlap, so text never stacks
+  let bubs=[];
   const bubble=(id,text,kind)=>{const nn=N[id];const txt=text.length>38?text.slice(0,37)+'…':text;
-    const g=el('g',{class:'bub '+(kind||''),transform:`translate(${nn.x},${nn.y-25})`},Lf);
     const wd=Math.min(210,txt.length*5.2+16);let x=-wd/2;if(nn.x+x<4)x=4-nn.x;if(nn.x+x+wd>396)x=396-wd-nn.x;
-    el('rect',{x,y:-17,width:wd,height:16,rx:8},g);el('text',{x:x+wd/2,y:-6,'text-anchor':'middle'},g).textContent=txt;setTimeout(()=>g.remove(),2300/SPEED)};
+    const top=nn.y<70?nn.y+48:nn.y-42,box={x1:nn.x+x,x2:nn.x+x+wd,y1:top,y2:top+16};
+    bubs=bubs.filter(b=>{const hit=b.box.x1<box.x2+4&&box.x1<b.box.x2+4&&b.box.y1<box.y2+2&&box.y1<b.box.y2+2;if(hit)b.g.remove();return !hit&&b.g.isConnected});
+    const g=el('g',{class:'bub '+(kind||''),transform:`translate(${nn.x},${top+17})`},Lf);
+    el('rect',{x,y:-17,width:wd,height:16,rx:8},g);el('text',{x:x+wd/2,y:-6,'text-anchor':'middle'},g).textContent=txt;
+    bubs.push({g,box});setTimeout(()=>g.remove(),2300/SPEED)};
   const fly=(a,b,type)=>new Promise(res=>{const e=getE(a,b);if(!e)return res();const p=e.p,len=p.getTotalLength(),rev=e.a!==a,T=TYPES[type];
     p.style.stroke=T.c;p.style.strokeWidth='2.2';const done=()=>{setTimeout(()=>{p.style.stroke='';p.style.strokeWidth=''},450);res()};
     if(reduce)return done();const wd=T.l.length*6+10;const g=el('g',{class:'pkt'},Lf);g.style.setProperty('--c',T.c);
@@ -663,204 +670,290 @@ function ctx(k){
   return {w,step,phase,node,set,edge,hot,msg,all,say,note,out,see,forget,human,ask,log,k,tok:()=>S.tok};
 }
 
-// ---- the eight simulations. Each one: nodes, messages, and what lands in whose context window.
+// ---- the eight simulations. Each one: nodes, then two runs: good (the pattern doing its job) and bad (where it breaks).
 const SIMS=[
 {key:'seq',name:'Sequential handoff',short:'a fixed chain of agents',
- uc:'Writing a blog post: Researcher → Writer → Editor. Only the Researcher read the brief, so the Editor polishes a post with no sources and no call to action.',
+ uc:'Writing a blog post: Researcher → Writer → Editor, always in that order. Each one adds to the work and hands it on.',
  ex:'Kiro (AWS): its spec workflow writes requirements.md, then design.md, then tasks.md, each built on the last and approved before the next.',
- when:'Steps are known and never change: ETL, form processing, a review chain.',risk:'Every handoff is a bottleneck: the next agent only knows what the last one chose to pass on.',
- lg:'g.add_edge("a", "b")\ng.add_edge("b", "c")',cr:'Crew(tasks=[a, b, c],\n     process=Process.sequential)',
- run:async c=>{c.human(1);
-  c.node('u','You',30,150,{role:'user',glyph:'YOU'});c.node('a','Agent A',115,150,{glyph:'A',status:'idle'});c.node('b','Agent B',200,150,{glyph:'B',status:'idle'});
-  c.node('c','Agent C',285,150,{glyph:'C',status:'idle'});c.node('o','Output',368,150,{role:'infra',glyph:'OUT',card:false});
-  c.step('A developer wired three agents in a row');await c.w(600);
-  c.step('Agent A gets the whole task: three requirements');
-  await c.msg('u','a','task','task: R1 + R2 + R3',{see:'task: R1, R2, R3',tok:30});c.set('a','active','working');await c.w(700);
-  c.say('a','Done: result covers R1');c.set('a','done','done');
-  c.step('Each agent passes on only its output');
-  await c.msg('a','b','data','result (R1)',{see:'A’s result: about R1',tok:160});c.set('b','active','working');
-  c.note('Agent B never sees the task. It only gets what Agent A chose to pass on.','warn');await c.w(900);
-  c.say('b','Refined the result');c.set('b','done','done');
-  await c.msg('b','c','data','refined result (R1)',{see:'B’s result: about R1',tok:120});c.set('c','active','working');await c.w(700);
-  c.say('c','Final answer');c.set('c','done','done');
-  await c.msg('c','o','data','final answer',{see:false});
+ when:'Steps are known and never change: ETL, form processing, a review chain.',risk:'Every handoff is a bottleneck: the next agent only knows what the last one chose to pass on. Drop the brief and requirements quietly disappear.',
+ lg:'g.add_edge("research", "write")\ng.add_edge("write", "edit")',cr:'Crew(tasks=[research, write, edit],\n     process=Process.sequential)',
+ nodes:c=>{c.human(1);
+  c.node('u','You',30,150,{role:'user',glyph:'YOU'});c.node('a','Researcher',115,150,{glyph:'RS',status:'idle'});c.node('b','Writer',200,150,{glyph:'WR',status:'idle'});
+  c.node('c','Editor',285,150,{glyph:'ED',status:'idle'});c.node('o','Blog post',368,150,{role:'infra',glyph:'OUT',card:false})},
+ good:async c=>{
+  c.step('The order is written in code: Research → Write → Edit');c.note('A developer fixed the order before anything ran. Same steps, same order, every time.');await c.w(900);
+  c.step('The Researcher gets the brief');
+  await c.msg('u','a','task','brief: remote-work post',{see:'brief: remote work · cite 3 sources · end with a sign-up CTA',tok:30});c.set('a','active','researching');await c.w(700);
+  c.say('a','Found 3 studies on remote work');c.set('a','done','done');
+  c.step('Each agent hands on its work, with the brief attached');
+  await c.msg('a','b','data','brief + notes + 3 links',{see:'brief + Researcher’s notes + 3 links',tok:190});c.set('b','active','writing');await c.w(800);
+  c.say('b','Draft: 3 sources + sign-up CTA');c.set('b','done','done');
+  await c.msg('b','c','data','brief + draft',{see:'brief + Writer’s draft',tok:150});c.set('c','active','editing');await c.w(700);
+  c.say('c','Checked the brief, polished it','good');c.set('c','done','done');
+  await c.msg('c','o','data','final post',{see:false});
+  c.note('3 agents, 3 calls, one fixed path: cheap, predictable and easy to test.','good');
+  c.out(`<p class="big">On topic <span class="good">✓</span> · sources <span class="good">✓</span> · sign-up CTA <span class="good">✓</span></p><p>When the steps are known, a fixed chain is the simplest pattern there is: nobody has to decide what happens next. The brief travels with the work, so every agent knows the goal.</p>`)},
+ bad:async c=>{
+  c.step('Same chain. This time each agent hands on only its own output');await c.w(600);
+  await c.msg('u','a','task','brief: remote-work post',{see:'brief: remote work · cite 3 sources · end with a sign-up CTA',tok:30});c.set('a','active','researching');await c.w(700);
+  c.say('a','Found 3 studies on remote work');c.set('a','done','done');
+  await c.msg('a','b','data','notes (facts, no links)',{see:'Researcher’s notes: facts, no links',tok:160});c.set('b','active','writing');
+  c.note('The Writer never sees the brief. It only gets the notes the Researcher chose to pass on.','warn');await c.w(900);
+  c.say('b','Wrote a 1,200-word draft');c.set('b','done','done');
+  await c.msg('b','c','data','draft v1',{see:'Writer’s draft: no sources, no CTA',tok:120});c.set('c','active','editing');await c.w(700);
+  c.say('c','Fixed grammar and tone');c.set('c','done','done');
+  await c.msg('c','o','data','polished post',{see:false});
   c.step('What was not handed on is gone');c.set('c','bad','incomplete');
-  c.note('R2 and R3 were in the task, but only Agent A ever saw them.','bad');
-  c.out(`<p class="big">Output meets R1, misses R2 and R3 <span class="bad">✗</span></p><p>Each handoff narrows what the next agent knows. Pass the goal along with the work, or hand off a structured result that says what is still open.</p>`)}},
-
-{key:'ctx',name:'Selective context',short:'each agent sees only what it needs',
- uc:'A market report: three section writers, a Lead and a Fact-checker. Given the Lead’s reasoning, the Fact-checker agrees; given only the draft and the checklist, it finds the missing pricing table.',
- ex:'Claude Code subagents: each works in its own clean context window and sends back only a short summary.',
- when:'Always. Give every agent a brief: its objective, its inputs, the output you want back.',risk:'Share everything and context windows fill with noise, cost more, and a reviewer anchors on the author’s reasoning.',
- lg:'Send("worker", {"subtask": s})\n# a node reads only the keys it needs',cr:'Task(..., context=[research])\n# only these outputs reach the task',
- run:async c=>{c.human(1);
-  c.node('lead','Coordinator',62,150,{glyph:'CO'});
-  [['wa','Worker A',180,60,'A'],['wb','Worker B',180,150,'B'],['wc','Worker C',180,240,'C']].forEach(([id,l,x,y,g])=>c.node(id,l,x,y,{glyph:g,status:'idle'}));
-  c.node('ld','Lead',290,150,{glyph:'LD'});c.node('rv','Reviewer',365,62,{role:'critic',glyph:'RV'});
-  c.phase('RUN 1 · SHARE EVERYTHING');
-  c.step('Run 1: every agent gets the whole transcript');
-  await c.all(...['wa','wb','wc'].map((id,i)=>c.w(i*120).then(()=>c.msg('lead',id,'task','everything so far',{see:'full transcript + all subtasks',tok:900}))));
-  ['wa','wb','wc'].forEach(id=>c.set(id,'active','reading'));await c.w(800);
-  c.note('Each worker reads all three subtasks to do one. Context bars fill up.','warn');await c.w(700);
-  await c.all(c.msg('wa','ld','data','notes + reasoning',{tok:500}),c.w(150).then(()=>c.msg('wb','ld','data','notes + reasoning',{tok:500})),c.w(300).then(()=>c.msg('wc','ld','data','notes + reasoning',{tok:500})));
-  ['wa','wb','wc'].forEach(id=>c.set(id,'done','done'));c.set('ld','active','drafting');await c.w(500);
-  c.say('ld','“Draft ready: confident it meets R3”');
-  await c.msg('ld','rv','data','transcript + my reasoning',{see:'whole transcript + the lead’s reasoning',tok:1900});
-  c.set('rv','active','reviewing');await c.w(900);c.say('rv','“Agreed, looks complete”','bad');c.set('rv','bad','anchored');
-  c.note('The reviewer read the lead’s reasoning and agreed with it. Nobody checked R3 against the draft.','bad');await c.w(2200);
-  const t1=c.tok();c.step('Run 2: each agent gets only what it needs');c.phase('RUN 2 · SELECTIVE CONTEXT');c.forget();
-  ['wa','wb','wc','ld','rv'].forEach(id=>c.set(id,'','idle'));await c.w(600);
-  await c.all(...[['wa','subtask 1'],['wb','subtask 2'],['wc','subtask 3']].map(([id,s],i)=>c.w(i*120).then(()=>c.msg('lead',id,'task','brief: '+s,{see:'brief: '+s+' · goal · output format',tok:140}))));
-  ['wa','wb','wc'].forEach(id=>c.set(id,'active','working'));await c.w(700);
-  await c.all(c.msg('wa','ld','data','result 1',{tok:40}),c.w(150).then(()=>c.msg('wb','ld','data','result 2',{tok:40})),c.w(300).then(()=>c.msg('wc','ld','data','result 3',{tok:40})));
-  ['wa','wb','wc'].forEach(id=>c.set(id,'done','done'));c.set('ld','active','drafting');await c.w(400);
-  c.say('ld','Draft ready');
-  await c.msg('ld','rv','data','draft + acceptance criteria',{see:'the draft + R1, R2, R3 only',tok:120,seeKind:'ok'});c.set('rv','active','checking');await c.w(800);
-  c.say('rv','R3 is not met','good');c.set('rv','done','caught it');
-  await c.msg('rv','ld','flag','R3 missing: fix it',{kind:'bad',tok:20});c.say('ld','Fixed: R3 covered','good');c.set('ld','done','done');
-  c.note('A clean context made the reviewer check the work, not the author. And it cost a fraction of the tokens.','good');
-  c.out(`<p class="big">Run 1: the gap slipped through <span class="bad">✗</span> · Run 2: caught it <span class="good">✓</span></p><p>Same agents. Run 1 put <b>${t1.toLocaleString('en-IN')}</b> tokens into context windows; run 2, with a brief for each agent, <b>${c.tok().toLocaleString('en-IN')}</b>. And the reviewer checked the work against the criteria.</p>`)}},
+  c.note('“Cite 3 sources” and “end with a sign-up CTA” were in the brief, but only the Researcher ever saw it.','bad');
+  c.out(`<p class="big">On topic <span class="good">✓</span> · sources <span class="bad">✗</span> · sign-up CTA <span class="bad">✗</span></p><p>Each handoff narrows what the next agent knows. Pass the brief along with the work, or hand off a structured result that says what is still open.</p>`)}},
 
 {key:'hier',name:'Hierarchical process',short:'a manager delegates, workers report back',
- uc:'A research report: a Manager briefs a Researcher, a Writer and a Verifier. Two sources disagree, so the Manager adds a verification step nobody planned.',
+ uc:'The same blog post, run by a Manager. It holds the brief, hands out one job at a time, and adds a fact-check nobody planned when two sources disagree.',
  ex:'Magentic orchestration (Microsoft Agent Framework): a manager keeps a task ledger and a progress ledger, picks who acts next, and replans when progress stalls.',
- when:'Open-ended work where the next step depends on the last result.',risk:'The manager is a bottleneck and a single point of failure; its context grows with every report.',
- lg:'g.add_conditional_edges("manager", route,\n    ["research", "draft", "verify", END])',cr:'Crew(..., process=Process.hierarchical,\n     manager_llm=llm)',
- run:async c=>{c.human(1);
+ when:'Open-ended work where the next step depends on the last result.',risk:'Every report flows through the manager: it is a bottleneck and a single point of failure, and its context grows with every result.',
+ lg:'g.add_conditional_edges("manager", route,\n    ["research", "write", "fact_check", END])',cr:'Crew(..., process=Process.hierarchical,\n     manager_llm=llm)',
+ nodes:c=>{c.human(1);
   c.node('u','You',30,150,{role:'user',glyph:'YOU'});c.node('m','Manager',120,150,{role:'sup',glyph:'MG'});
-  c.node('wr','Researcher',268,52,{glyph:'RS',status:'idle'});c.node('ww','Writer',310,150,{glyph:'WR',status:'idle'});c.node('wv','Verifier',268,250,{glyph:'VF',status:'idle'});
-  c.node('o','Output',120,262,{role:'infra',glyph:'OUT',card:false});
-  c.step('You give the goal to a manager');await c.msg('u','m','task','goal',{see:'goal + constraints',tok:30});c.set('m','active','planning');await c.w(500);
+  c.node('wr','Researcher',268,52,{glyph:'RS',status:'idle'});c.node('ww','Writer',310,150,{glyph:'WR',status:'idle'});c.node('wv','Fact-checker',268,250,{glyph:'FC',status:'idle'});
+  c.node('o','Blog post',120,262,{role:'infra',glyph:'OUT',card:false})},
+ good:async c=>{
+  c.step('You give the brief to a manager');await c.msg('u','m','task','brief: remote-work post',{see:'brief: remote work · cite 3 sources · end with a sign-up CTA',tok:30});c.set('m','active','planning');await c.w(500);
   c.step('The manager decides who works next, one result at a time');
-  await c.msg('m','wr','task','research the topic',{tok:30});c.set('wr','active','working');await c.w(700);
-  await c.msg('wr','m','data','findings (5 sources)',{see:'Researcher’s findings',tok:160});c.set('wr','done','done');await c.w(400);
-  c.say('m','Next: draft from the findings');
-  await c.msg('m','ww','task','draft it',{tok:120});c.set('ww','active','working');await c.w(700);
-  await c.msg('ww','m','data','draft v1',{see:'Writer’s draft',tok:130});c.set('ww','done','done');await c.w(400);
+  await c.msg('m','wr','task','find 3 sources',{see:'job: 3 sources on remote work',tok:30});c.set('wr','active','working');await c.w(700);
+  await c.msg('wr','m','data','3 sources, 2 disagree',{see:'Researcher: 3 sources · study A +13%, survey B −10%',tok:160});c.set('wr','done','done');await c.w(400);
   c.step('A result surprises it, so it adds a step nobody planned');
-  c.say('m','Two sources disagree: verify first');c.note('No fixed plan had a verification step. The manager added one because of what it saw.','warn');await c.w(900);
-  await c.msg('m','wv','task','check the conflicting claim',{tok:40});c.set('wv','active','checking');await c.w(700);
-  await c.msg('wv','m','flag','source 3 is unreliable',{kind:'bad',see:'Verifier’s result',tok:40});c.set('wv','done','done');
-  c.say('m','Drop source 3, finalise','good');c.set('m','done','done');
-  await c.msg('m','o','data','final output',{see:false});
-  c.note('Every message went through the manager: its context window is the biggest on the board.','warn');
-  c.out(`<p class="big">Delivered, with a step nobody planned <span class="good">✓</span></p><p>The manager adapted the plan at run time. The price: every report flows through one agent, and its context keeps growing.</p>`)}},
+  c.say('m','Sources disagree: fact-check first');c.note('No fixed chain had a fact-check step. The manager added one because of what it saw.','good');await c.w(900);
+  await c.msg('m','wv','task','check survey B',{see:'job: check survey B (−10%)',tok:40});c.set('wv','active','checking');await c.w(700);
+  await c.msg('wv','m','flag','survey B is a vendor ad: drop it',{kind:'bad',see:'Fact-checker: survey B is a vendor ad',tok:40});c.set('wv','done','done');await c.w(400);
+  c.say('m','Next: draft with 2 sources');
+  await c.msg('m','ww','task','draft: 2 sources + sign-up CTA',{see:'job: draft · 2 sources · end with a sign-up CTA',tok:120});c.set('ww','active','writing');await c.w(700);
+  await c.msg('ww','m','data','draft v1',{see:'Writer’s draft',tok:130});c.set('ww','done','done');await c.w(400);
+  c.say('m','Checked against the brief: all met','good');c.set('m','done','done');
+  await c.msg('m','o','data','final post',{see:false});
+  c.out(`<p class="big">Sources <span class="good">✓</span> · sign-up CTA <span class="good">✓</span> · plus a fact-check nobody planned</p><p>Same workers as the sequential chain. The difference is <b>who decides the next step, and when</b>: a developer before the run, or a manager after every result. The manager adapts, and keeps the brief in view.</p>`)},
+ bad:async c=>{
+  c.step('Same manager. This time every worker sends back its full output');
+  await c.msg('u','m','task','brief: remote-work post',{see:'brief: remote work · cite 3 sources · end with a sign-up CTA',tok:30});c.set('m','active','planning');await c.w(400);
+  await c.msg('m','wr','task','find 3 sources',{tok:30});c.set('wr','active','working');await c.w(500);
+  await c.msg('wr','m','data','full research notes',{see:'Researcher: full notes, 3 sources',tok:900});c.set('wr','done','done');
+  await c.msg('m','wv','task','check survey B',{tok:40});c.set('wv','active','checking');await c.w(500);
+  await c.msg('wv','m','data','full fact-check report',{see:'Fact-checker: full report',tok:500});c.set('wv','done','done');
+  await c.msg('m','ww','task','draft it',{tok:60});c.set('ww','active','writing');await c.w(500);
+  await c.msg('ww','m','data','draft v1 (1,200 words)',{see:'Writer: full draft',tok:700});c.set('ww','done','done');
+  c.note('Every “who next?” is a Manager LLM call, and every report lands in its context window. The brief is now one line under 2,000 tokens of reports.','warn');await c.w(1400);
+  c.step('Buried in its own context, the manager misses something');
+  c.say('m','Looks good, ship it');c.set('m','bad','overloaded');await c.w(500);
+  await c.msg('m','o','data','post, no sign-up CTA',{see:false,kind:'bad'});
+  c.note('“End with a sign-up CTA” was in the brief, at the top of a long context. The manager lost track of it.','bad');
+  c.out(`<p class="big">Shipped without the sign-up CTA <span class="bad">✗</span></p><p>One agent sees everything, decides everything and pays for every token. If it slips, nobody else catches it. Ask workers for short summaries, and give the manager a checklist to check against.</p>`)}},
 
 {key:'par',name:'Parallel fan-out / fan-in',short:'many agents at once, one waits for all',
- uc:'Planning a trip: Flights, Hotels and Weather agents search at once, and the Itinerary builder waits for the slow Hotels agent.',
+ uc:'Planning a Goa trip: Flights, Weather and Hotels agents search at the same time, and the Itinerary builder combines their answers.',
  ex:'Claude Research (Anthropic): a lead agent runs subagents in parallel, at about 15× the tokens of a chat.',
- when:'Independent subtasks: sources, files, regions, candidates.',risk:'One slow agent holds everyone up, and every extra agent adds tokens.',
+ when:'Independent subtasks: sources, files, regions, candidates.',risk:'The join waits for the slowest agent, so one slow branch holds everyone up. And every extra agent adds tokens.',
  lg:'[Send("worker", {"part": p}) for p in parts]\ng.add_edge("worker", "aggregate")  # fan in',cr:'Task(..., async_execution=True)  # per part\nTask(..., context=[a, b, c])      # fan in',
- run:async c=>{c.human(1);
+ nodes:c=>{c.human(1);
   c.node('lead','Coordinator',58,150,{glyph:'CO'});
-  [['wa','Worker A',190,58,'A'],['wb','Worker B',190,150,'B'],['wc','Worker C',190,242,'C']].forEach(([id,l,x,y,g])=>c.node(id,l,x,y,{glyph:g,status:'idle'}));
-  c.node('ag','Aggregator',318,150,{glyph:'AG',status:'waiting 0/3'});
-  c.step('Fan out: one worker per part, all at once');
-  await c.all(...[['wa','part 1'],['wb','part 2'],['wc','part 3']].map(([id,s],i)=>c.w(i*90).then(()=>c.msg('lead',id,'task',s,{see:s+' + goal',tok:140}))));
-  ['wa','wb','wc'].forEach(id=>c.set(id,'active','working'));
-  c.note('Three parts at the same time: about 2 s instead of 6 s one after another.','good');await c.w(900);
-  c.step('Fan in: the aggregator waits for every worker');
-  const fin=async(id,t,d,i)=>{await c.w(d);await c.msg(id,'ag','data',t,{tok:30});c.set(id,'done','done');c.set('ag','wait',`waiting ${i}/3`)};
-  await fin('wb','result 2',0,1);await fin('wa','result 1',200,2);c.note('Worker C is slow. Everyone waits for the slowest worker.','warn');await fin('wc','result 3',1100,3);
-  c.set('ag','active','combining');await c.w(500);c.say('ag','3 results combined','good');c.set('ag','done','done');
-  c.out(`<p class="big">Three parts in the time of the slowest one</p><p>Fan out when the work is independent; the join waits for everyone, so the slowest branch sets the pace.</p>`)}},
+  [['wa','Flights',190,58,'FL'],['wb','Weather',190,150,'WE'],['wc','Hotels',190,242,'HO']].forEach(([id,l,x,y,g])=>c.node(id,l,x,y,{glyph:g,status:'idle'}));
+  c.node('ag','Itinerary',318,150,{glyph:'IT',status:'waiting 0/3'})},
+ fanOut:async c=>{
+  await c.all(...[['wa','flights BLR→Goa, 12 Dec'],['wb','Goa weather, 12–15 Dec'],['wc','hotels under ₹4k a night']].map(([id,s],i)=>c.w(i*90).then(()=>c.msg('lead',id,'task',s,{see:s+' · trip: 3 days in Goa',tok:140}))));
+  ['wa','wb','wc'].forEach(id=>c.set(id,'active','searching'))},
+ fin:async(c,id,t,d,i)=>{await c.w(d);await c.msg(id,'ag','data',t,{tok:30});c.set(id,'done','done');c.set('ag','wait',`waiting ${i}/3`)},
+ good:async c=>{const P=SIMS.find(p=>p.key==='par');
+  c.step('Fan out: one agent per part of the trip, all at once');await P.fanOut(c);
+  c.note('Three searches at the same time: about 2 s instead of 6 s one after another.','good');await c.w(900);
+  c.step('Fan in: the itinerary combines every answer');
+  await P.fin(c,'wb','sunny, 31 °C',0,1);await P.fin(c,'wa','6:10 a.m. flight, ₹3,900',100,2);await P.fin(c,'wc','beach hotel, ₹3,600 a night',100,3);
+  c.set('ag','active','planning');await c.w(500);c.say('ag','3-day Goa plan ready','good');c.set('ag','done','done');
+  c.out(`<p class="big">A whole trip in the time of one search <span class="good">✓</span></p><p>Fan out when the parts don’t depend on each other: three agents work at once, and one combines their answers.</p>`)},
+ bad:async c=>{const P=SIMS.find(p=>p.key==='par');
+  c.step('Same fan-out. This time Hotels is slow');await P.fanOut(c);await c.w(700);
+  await P.fin(c,'wb','sunny, 31 °C',0,1);await P.fin(c,'wa','6:10 a.m. flight, ₹3,900',100,2);
+  c.step('Fan in: the itinerary can’t start until every agent is back');
+  c.note('Hotels is checking 40 sites. Flights and Weather are done, and the Itinerary just waits.','warn');await c.w(2600);
+  await P.fin(c,'wc','beach hotel, ₹3,600 a night',0,3);
+  c.set('ag','active','planning');await c.w(500);c.say('ag','3-day Goa plan, finally');c.set('ag','done','done');
+  c.out(`<p class="big">Done, but only as fast as Hotels <span class="bad">✗</span></p><p>The join waits for everyone, so the slowest branch sets the pace, and three agents cost three times the tokens. Give each branch a timeout, or let the join start with what it has.</p>`)}},
 
 {key:'crit',name:'Critic loop',short:'a reviewer can send work back',
- uc:'Writing code: a Coder and a Reviewer who runs the tests. v1 fails on an empty list and goes back with that feedback; v2 passes. At most 3 attempts.',
+ uc:'Writing code: a Coder and a Tester who runs the tests. v1 fails a test and goes back with the error; v2 passes.',
  ex:'AlphaEvolve (Google DeepMind): Gemini writes code, automated evaluators score it, the best versions are refined. One result recovers about 0.7% of Google’s compute.',
- when:'Anything where a wrong answer is costly: actions, code, claims.',risk:'Loops forever without a limit. A reviewer that shares the author’s context shares its blind spots.',
+ when:'Anything where a wrong answer is costly: actions, code, claims.',risk:'Some feedback can’t be fixed: without a limit the loop retries forever and pays for every try. A reviewer that shares the author’s context shares its blind spots.',
  lg:'g.add_conditional_edges("review", verdict,\n    ["generate", END])',cr:'Task(..., guardrail=check,\n     guardrail_max_retries=2)',
- run:async c=>{c.human(1);
-  c.node('gn','Generator',95,150,{glyph:'GN'});c.node('rv','Reviewer',255,150,{role:'critic',glyph:'RV'});c.node('o','Output',365,150,{role:'infra',glyph:'OUT',card:false});
-  c.see('rv','acceptance criteria: C1, C2, C3',{tok:30,kind:'own'});
-  c.step('The generator produces a first draft');c.set('gn','active','attempt 1/3');c.say('gn','Draft v1');await c.w(600);
-  await c.msg('gn','rv','data','draft v1',{see:'draft v1',tok:120});c.set('rv','active','checking');await c.w(800);
-  c.step('The reviewer checks it against the criteria');c.say('rv','Fails C2','bad');
-  await c.msg('rv','gn','flag','fails C2: fix it',{kind:'bad',see:'feedback: fails C2',seeKind:'bad',tok:25});c.set('gn','bad','rework');await c.w(800);
-  c.step('Rework: the generator tries again with the feedback');c.set('gn','active','attempt 2/3');c.say('gn','Draft v2');await c.w(500);
-  await c.msg('gn','rv','data','draft v2',{see:'draft v2',tok:120});c.set('rv','active','checking');await c.w(700);
-  c.say('rv','Meets C1–C3. Approved','good');c.set('rv','done','approved');c.set('gn','done','done');
+ nodes:c=>{c.human(1);
+  c.node('gn','Coder',95,150,{glyph:'CD'});c.node('rv','Tester',255,150,{role:'critic',glyph:'TS'});c.node('o','Merged',365,150,{role:'infra',glyph:'OUT',card:false})},
+ good:async c=>{
+  c.see('rv','tests: sorts prices · empty list · duplicates',{tok:30,kind:'own'});
+  c.step('The Coder writes a first version');c.set('gn','active','attempt 1/3');c.say('gn','v1: sort_prices()');await c.w(600);
+  await c.msg('gn','rv','data','code v1',{see:'code v1',tok:120});c.set('rv','active','testing');await c.w(800);
+  c.step('The Tester runs it against the tests');c.say('rv','test_empty fails: IndexError','bad');
+  await c.msg('rv','gn','flag','crashes on empty list: fix it',{kind:'bad',see:'feedback: crashes on an empty list',seeKind:'bad',tok:25});c.set('gn','active','rework');await c.w(800);
+  c.step('Rework: the Coder tries again with the feedback');c.set('gn','active','attempt 2/3');c.say('gn','v2: handles an empty list');await c.w(500);
+  await c.msg('gn','rv','data','code v2',{see:'code v2',tok:120});c.set('rv','active','testing');await c.w(700);
+  c.say('rv','All 3 tests pass. Approved','good');c.set('rv','done','approved');c.set('gn','done','done');
   await c.msg('rv','o','ok','approved',{see:false});
-  c.note('A limit of 3 attempts keeps the loop from running forever.','warn');
-  c.out(`<p class="big">Approved on attempt 2 <span class="good">✓</span></p><p>One rejection, one retry. The loop is cheap insurance, as long as it has a limit.</p>`)}},
+  c.note('The Tester caught the bug before it was merged, and the feedback told the Coder exactly what to fix.','good');
+  c.out(`<p class="big">Approved on attempt 2 <span class="good">✓</span></p><p>One failing test, one retry. A second pair of eyes with clear criteria turns “looks done” into “is done”.</p>`)},
+ bad:async c=>{
+  c.node('u','You',255,262,{role:'user',glyph:'YOU'});
+  c.see('rv','tests: sorts prices · empty list · live prices',{tok:30,kind:'own'});
+  c.step('Same loop. This time a test fails for a reason outside the code');
+  const tries=[['v1: sort_prices()'],['v2: added retries'],['v3: longer timeout']];
+  for(let i=0;i<3;i++){c.set('gn','active',`attempt ${i+1}/3`);c.say('gn',tries[i][0]);await c.w(400);
+    await c.msg('gn','rv','data','code v'+(i+1),{see:'code v'+(i+1),tok:120});c.set('rv','active','testing');await c.w(500);
+    c.say('rv','test_live_prices: API timeout','bad');
+    if(i<2){await c.msg('rv','gn','flag','price API timed out: fix it',{kind:'bad',see:'feedback: price API timed out',seeKind:'bad',tok:25});c.set('gn','bad','rework');await c.w(500)}
+    if(i===1)c.note('The price API is down. No change to the code can fix that, but the Coder keeps trying.','warn')}
+  c.step('The limit stops the loop and asks a human');c.set('gn','bad','gave up');c.set('rv','bad','still failing');
+  await c.msg('rv','u','ask','3 tries, still failing: help?',{see:false});
+  c.note('Without the limit, it would retry forever, and every try costs tokens.','bad');
+  c.out(`<p class="big">Stopped after 3 attempts <span class="bad">✗</span></p><p>The loop can only fix what the generator can change. Cap the attempts, and hand it to a human when the cap is hit.</p>`)}},
+
+{key:'ctx',name:'Selective context',short:'each agent sees only what it needs',
+ uc:'A market report: the Lead writer asks a Fact-checker to check its draft, and sends only the draft and a checklist.',
+ ex:'Claude Code subagents: each works in its own clean context window and sends back only a short summary.',
+ when:'Always. Give every agent a brief: its objective, its inputs, the output you want back.',risk:'Send everything and context windows fill with noise and cost more, and a reviewer that reads the author’s reasoning tends to agree with it.',
+ lg:'# a brief, not the whole transcript\nchecker.invoke({"draft": d, "checklist": c})',cr:'Task(..., context=[draft_task])\n# only these outputs reach the task',
+ nodes:c=>{c.human(1);
+  c.node('ld','Lead writer',100,150,{glyph:'LW'});c.node('rv','Fact-checker',300,150,{role:'critic',glyph:'FC',status:'idle'});
+  c.node('o','Report',100,262,{role:'infra',glyph:'OUT',card:false})},
+ good:async c=>{
+  c.step('The Lead writer has a draft and wants it checked');c.see('ld','brief + notes from 3 section writers',{tok:300,kind:'own'});c.set('ld','active','drafting');await c.w(700);
+  c.step('It sends only what the check needs: the draft and a checklist');
+  await c.msg('ld','rv','data','draft + checklist',{see:'draft + checklist: size · rivals · pricing table',tok:120,seeKind:'ok'});c.set('rv','active','checking');await c.w(800);
+  c.say('rv','No pricing table in the draft','good');c.set('rv','done','caught it');
+  await c.msg('rv','ld','flag','pricing table missing: add it',{kind:'bad',tok:20});c.say('ld','Added the pricing table','good');c.set('ld','done','done');
+  await c.msg('ld','o','data','report + pricing table',{see:false});
+  c.note('The Fact-checker had nothing to go on but the draft, so it checked the draft.','good');
+  c.out(`<p class="big">Caught the missing table <span class="good">✓</span></p><p>A short brief kept the Fact-checker’s context small (<b>${c.tok().toLocaleString('en-IN')}</b> tokens in all) and its judgement independent: it checked the draft against the checklist, not against the author’s confidence.</p>`)},
+ bad:async c=>{
+  c.step('Same draft. This time the Lead writer sends everything');c.see('ld','brief + notes from 3 section writers',{tok:300,kind:'own'});c.set('ld','active','drafting');await c.w(700);
+  c.say('ld','“Pricing table is in, I’m sure”');await c.w(600);
+  await c.msg('ld','rv','data','draft + my reasoning',{see:'draft + the Lead writer’s reasoning',tok:1900});
+  c.set('rv','active','reviewing');await c.w(900);c.say('rv','“Agreed, looks complete”','bad');c.set('rv','bad','anchored');
+  c.note('The Fact-checker read “I’m sure the table is in” and believed it. Nobody looked for the table in the draft.','bad');await c.w(1400);
+  await c.msg('ld','o','data','report, no pricing table',{see:false,kind:'bad'});c.set('ld','bad','shipped a gap');
+  c.out(`<p class="big">The missing table slipped through <span class="bad">✗</span></p><p>Same two agents, same draft. Sending everything put <b>${c.tok().toLocaleString('en-IN')}</b> tokens into context windows, about five times the brief-only run, and the Fact-checker anchored on the author’s reasoning.</p>`)}},
 
 {key:'board',name:'Shared state · blackboard',short:'agents read and write one board',
- uc:'An incident war room: Logs and Metrics agents add findings to one board. The Lead decides the root cause; the Reviewer only writes a verdict.',
+ uc:'An incident war room: Logs and Metrics agents add findings to one board. The Reviewer writes a verdict; the Incident lead reads it all and writes the root cause.',
  ex:'Claude Code Agent Teams: teammates share one task list and claim tasks from it, with dependencies unblocking automatically.',
- when:'Many specialists contribute pieces; the order isn’t known up front.',risk:'Two agents writing the same field make conflicting decisions. Keep one writer per decision.',
+ when:'Many specialists contribute pieces; the order isn’t known up front.',risk:'If two agents write the same single answer, whoever writes last wins. Give each decision one owner.',
  lg:'findings: Annotated[list, operator.add]\n# a reducer merges parallel writes',cr:'class State(BaseModel): ...\nclass F(Flow[State]):  # self.state',
- run:async c=>{c.human(1);
+ nodes:c=>{c.human(1);
   c.node('b','Shared state',200,150,{role:'infra',glyph:'{ }'});
-  [['wa','Agent A',70,60,null,'A'],['wb','Agent B',330,60,null,'B'],['ld','Lead',70,240,null,'LD'],['rv','Reviewer',330,240,'critic','RV']].forEach(([id,l,x,y,r,g])=>c.node(id,l,x,y,{role:r,glyph:g,status:'idle'}));
-  c.step('Agents write findings to one shared state');
-  await c.all(c.msg('wa','b','write','findings += [x]',{see:'findings: x',tok:30}),c.w(120).then(()=>c.msg('wb','b','write','findings += [y]',{see:'findings: y',tok:30})));
-  c.note('Both wrote at once. A reducer (append) keeps both findings: nothing is lost.','good');await c.w(1000);
-  c.step('Others read what they need from it');
-  await c.msg('b','ld','read','findings',{see:'findings: x, y',tok:60});c.set('ld','active','deciding');await c.w(500);
-  c.step('Two agents write the same decision');
-  await c.all(c.msg('ld','b','write','decision = x',{see:'decision: x',tok:15}),c.w(100).then(()=>c.msg('rv','b','write','decision = y',{kind:'bad',see:'decision: y (conflict!)',seeKind:'bad',tok:15})));
-  c.set('ld','bad','conflict');c.set('rv','bad','conflict');c.note('Two writers, one field: whichever lands last wins. That’s a bug, not a decision.','bad');await c.w(1600);
-  c.step('Fix: one writer per decision');c.set('rv','active','reviewing');
-  await c.msg('rv','b','write','verdict = reject x',{see:'verdict: reject x',tok:15});
-  await c.msg('b','ld','read','verdict',{tok:20});c.set('ld','done','decision: y');c.set('rv','done','done');
-  await c.msg('ld','b','write','decision = y',{see:'decision: y',seeKind:'ok',tok:15});
-  c.out(`<p class="big">Shared state works, with two rules</p><p>Merge parallel writes with a reducer; give each decision a single writer. The reviewer writes a verdict, only the lead writes the decision.</p>`)}},
+  [['wa','Logs agent',70,60,null,'LG'],['wb','Metrics agent',330,60,null,'MT'],['ld','Incident lead',70,240,null,'LD'],['rv','Reviewer',330,240,'critic','RV']].forEach(([id,l,x,y,r,g])=>c.node(id,l,x,y,{role:r,glyph:g,status:'idle'}))},
+ findings:async c=>{
+  await c.all(c.msg('wa','b','write','findings += DB timeouts 03:02',{see:'findings: DB timeouts since 03:02',tok:30}),c.w(120).then(()=>c.msg('wb','b','write','findings += CPU 98% on db-1',{see:'findings: CPU 98% on db-1',tok:30})));
+  c.set('wa','done','done');c.set('wb','done','done')},
+ good:async c=>{
+  c.step('Agents write findings to one shared board');await SIMS.find(p=>p.key==='board').findings(c);
+  c.note('Both wrote at once. findings is a list, so both are added: nothing is lost.','good');await c.w(1000);
+  c.step('Each agent reads what it needs from the board');
+  await c.msg('b','rv','read','findings',{see:'findings: DB timeouts · CPU 98%',tok:60});c.set('rv','active','reviewing');await c.w(500);
+  await c.msg('rv','b','write','verdict = deploy #42 fits',{see:'verdict: deploy #42 (03:01) fits the spike',tok:15});c.set('rv','done','done');
+  c.step('One owner writes the decision');
+  await c.msg('b','ld','read','findings + verdict',{see:'findings + verdict: deploy #42',tok:80});c.set('ld','active','deciding');await c.w(500);
+  await c.msg('ld','b','write','root_cause = deploy #42',{see:'root_cause: deploy #42',seeKind:'ok',tok:15});c.set('ld','done','cause: deploy #42');
+  c.note('Nobody waited for anybody: each agent read the board and added its part.','good');
+  c.out(`<p class="big">Root cause found: deploy #42 <span class="good">✓</span></p><p>A shared board lets specialists add pieces in any order. A list takes everyone’s writes; the single answer, root_cause, has a single owner.</p>`)},
+ bad:async c=>{
+  c.step('Same board. This time two agents write the same answer');await SIMS.find(p=>p.key==='board').findings(c);
+  await c.all(c.msg('b','ld','read','findings',{see:'findings: DB timeouts · CPU 98%',tok:60}),c.msg('b','rv','read','findings',{see:'findings: DB timeouts · CPU 98%',tok:60}));
+  c.set('ld','active','deciding');c.set('rv','active','deciding');await c.w(500);
+  await c.all(c.msg('ld','b','write','root_cause = DB overload',{see:'root_cause: DB overload',tok:15}),c.w(100).then(()=>c.msg('rv','b','write','root_cause = deploy #42',{kind:'bad',see:'root_cause: deploy #42 (overwrote it!)',seeKind:'bad',tok:15})));
+  c.set('ld','bad','conflict');c.set('rv','bad','conflict');
+  c.note('root_cause holds one answer. The second write erased the first: whoever wrote last won, not whoever was right.','bad');await c.w(1600);
+  c.step('Run it again and the answer can flip');
+  c.out(`<p class="big">root_cause = whoever wrote last <span class="bad">✗</span></p><p>Timing decided the answer, not evidence. Fix: one owner per decision. The Reviewer writes a verdict; only the Incident lead writes the root cause.</p>`)}},
 
 {key:'event',name:'Event-driven',short:'something changes, agents start',
  uc:'On-call at 3 a.m.: an error spike wakes a Watcher, a team investigates, a Reviewer checks, and your first involvement is “Deploy #42 caused it. Roll back?”',
  ex:'Datadog Bits AI SRE: an alert fires and the agent starts investigating on its own, around the clock.',
- when:'Alerts, tickets, prices, files arriving: work that should start itself.',risk:'Nobody is watching when it starts. It needs a budget, a stop rule and a human for anything irreversible.',
+ when:'Alerts, tickets, prices, files arriving: work that should start itself.',risk:'Nobody is watching when it starts. Without a stop rule and a human for anything irreversible, it can act on its own, and be wrong.',
  lg:'# an event handler calls the graph\ngraph.invoke({"event": alert})',cr:'class Watch(Flow):\n  @start() … @router(…) … @listen("go")',
- run:async c=>{c.human(0);
-  c.node('fd','Event source',48,62,{role:'event',glyph:'EV',card:false});c.node('wt','Watcher',48,232,{glyph:'WA',float:1,dim:1,status:'sleeping'});
-  c.node('tm','Team',205,150,{glyph:'TM',dim:1,status:'idle'});c.node('ck','Reviewer',330,62,{role:'critic',glyph:'RV',dim:1,status:'idle'});c.node('u','You',338,236,{role:'user',glyph:'YOU'});
-  c.step('No prompt. The watcher holds a rule: what to react to');c.see('wt','rule: react when X crosses a threshold',{tok:30,kind:'own'});await c.w(1400);
-  c.step('Something changes in the world');c.say('fd','X crossed the threshold','warn');await c.w(500);
-  await c.msg('fd','wt','event','alert',{see:'event: X crossed the threshold',tok:20});c.set('wt','active','deciding');await c.w(700);
-  c.say('wt','Matches the rule: act');
+ nodes:c=>{c.human(0);
+  c.node('fd','Error monitor',48,62,{role:'event',glyph:'EV',card:false});c.node('wt','Watcher',48,232,{glyph:'WA',float:1,dim:1,status:'sleeping'});
+  c.node('tm','On-call team',205,150,{glyph:'TM',dim:1,status:'idle'});c.node('ck','Reviewer',330,62,{role:'critic',glyph:'RV',dim:1,status:'idle'});c.node('u','You',338,236,{role:'user',glyph:'YOU'})},
+ wake:async c=>{
+  c.step('Something changes in the world');c.say('fd','Errors at 12%, 03:07','warn');await c.w(500);
+  await c.msg('fd','wt','event','alert: errors at 12%',{see:'event: errors at 12% since 03:07',tok:20});c.set('wt','active','deciding');await c.w(700);
+  c.say('wt','Matches the rule: wake the team');
   c.step('It wakes the team: nobody pressed run');
-  await c.msg('wt','tm','task','handle it',{tok:40});c.set('tm','active','working');await c.w(900);
-  await c.msg('tm','ck','data','proposed action',{tok:50});c.set('ck','active','checking');await c.w(600);c.set('ck','done','approved');c.set('tm','done','done');
+  await c.msg('wt','tm','task','investigate the spike',{tok:40});c.set('tm','active','investigating');await c.w(900)},
+ good:async c=>{
+  c.step('No prompt. The watcher holds a rule: what to react to');c.see('wt','rule: wake the team if errors > 5% for 5 min',{tok:30,kind:'own'});await c.w(1400);
+  await SIMS.find(p=>p.key==='event').wake(c);
+  await c.msg('tm','ck','data','roll back deploy #42',{see:'proposal: roll back deploy #42 (shipped 03:01)',tok:50});c.set('ck','active','checking');await c.w(600);c.set('ck','done','approved');c.set('tm','done','done');
   c.step('You hear about it only when there is something to decide');
-  await c.msg('wt','u','ask','approve the action?',{see:false});c.set('wt','done','notified');
+  await c.msg('wt','u','ask','Deploy #42 caused it. Roll back?',{see:false});c.set('wt','done','notified');
   c.note('Human steps: 0 until this message. The agents started the work themselves.','good');
-  c.out(`<p class="big">The work started itself</p><p>Something changed, not someone typing. That’s why the next pattern matters.</p>`)}},
+  c.out(`<p class="big">The work started itself <span class="good">✓</span></p><p>Something changed at 3 a.m., not someone typing. By the time you were asked, the investigation was done and checked.</p>`)},
+ bad:async c=>{
+  c.node('px','Production',205,262,{role:'infra',glyph:'PRD',card:false});c.set('u','dim');
+  c.step('Same watcher. This time its rule says: fix it yourself');c.see('wt','rule: if errors > 5%, fix it',{tok:20,kind:'own'});await c.w(1200);
+  await SIMS.find(p=>p.key==='event').wake(c);
+  c.say('tm','Deploy #42 looks guilty');c.set('ck','dim','not asked');
+  c.step('Nobody checks, nobody asks');
+  await c.msg('tm','px','task','roll back deploy #42',{see:false});await c.w(600);
+  c.say('fd','Errors still at 12%','bad');c.note('The rollback did nothing: the real cause was the database. Nobody was asked, and it’s 3:09 a.m.','warn');await c.w(1200);
+  await c.msg('tm','px','task','restart the database',{see:false,kind:'bad'});c.set('tm','bad','guessing');
+  c.note('Each fix it tries is a change in production, made while you sleep.','bad');
+  c.out(`<p class="big">It acted on its own, and got it wrong <span class="bad">✗</span></p><p>Work that starts itself needs a budget, a stop rule and a human for anything irreversible. That’s the next pattern.</p>`)}},
 
 {key:'hitl',name:'Human in the loop',short:'pause, ask, resume',
- uc:'A customer refund: the Support agent proposes a $500 refund, the graph pauses and saves its state, and nothing is paid until you approve.',
+ uc:'A customer refund: the Support agent proposes a ₹5,000 refund, the graph pauses and saves its state, and nothing is paid until you approve.',
  ex:'ChatGPT agent (OpenAI): it browses and fills forms by itself, but stops to ask you before purchases, logins and other consequential steps.',
- when:'Anything irreversible: payments, deletes, emails, deploys.',risk:'Without it an agent can spend, delete or send with nobody asked. With it, the graph must be able to wait.',
+ when:'Anything irreversible: payments, deletes, emails, deploys.',risk:'Ask too often and people click Approve without reading. Ask only for steps that are large or can’t be undone, and the graph must be able to wait.',
  lg:'answer = interrupt(proposal)   # pauses, state saved\ngraph.invoke(Command(resume="approve"), cfg)',cr:'Task(..., human_input=True)\n# or @human_feedback in a Flow',
- run:async c=>{c.human(0);
-  c.node('ag','Agent',70,150,{glyph:'AG'});c.node('gt','Approval',205,150,{role:'sup',glyph:'AP'});c.node('ex','Execute',340,150,{role:'infra',glyph:'EX',card:false});
-  c.node('u','You',205,262,{role:'user',glyph:'YOU'});c.node('cp','Checkpoint',205,40,{role:'infra',glyph:'CP',card:false});
-  c.step('The agent proposes an irreversible action');c.set('ag','active','proposing');
-  await c.msg('ag','gt','task','proposal: action Z',{see:'proposal: action Z (cannot be undone)',tok:30});c.set('ag','done','waiting');
+ nodes:c=>{c.human(0);
+  c.node('ag','Support agent',70,150,{glyph:'SA'});c.node('gt','Approval',205,150,{role:'sup',glyph:'AP'});c.node('ex','Pay refund',340,150,{role:'infra',glyph:'₹',card:false});
+  c.node('u','You',205,262,{role:'user',glyph:'YOU'});c.node('cp','Checkpoint',205,40,{role:'infra',glyph:'CP',card:false})},
+ good:async c=>{
+  c.step('The agent proposes an action that can’t be undone');c.set('ag','active','proposing');
+  await c.msg('ag','gt','task','refund ₹5,000 · order #1182',{see:'proposal: refund ₹5,000 for order #1182 (cannot be undone)',tok:30});c.set('ag','done','waiting');
   c.step('The graph pauses and saves its state');c.set('gt','wait','paused');
   await c.msg('gt','cp','write','state saved',{see:false});c.note('Paused at interrupt(). The state is on disk: the process could even restart.','warn');await c.w(800);
-  await c.msg('gt','u','ask','approve action Z?',{see:false});
+  await c.msg('gt','u','ask','approve the ₹5,000 refund?',{see:false});
   c.step('Your turn: approve or deny');
-  const yes=await c.ask('Approve action Z? It cannot be undone.','Approve','Deny');c.human(1);
+  const yes=await c.ask('Refund ₹5,000 for order #1182? Money paid out can’t be pulled back.','Approve','Deny');c.human(1);
   c.log('You:',yes?'Approved':'Denied',yes?'good':'warn','var(--accent)');$('#out').hidden=true;
   c.step('Resume with your answer');await c.msg('cp','gt','read','state restored',{see:false});
   await c.msg('u','gt',yes?'ok':'flag',yes?'approve':'deny',{see:'human: '+(yes?'approve':'deny'),seeKind:yes?'ok':'bad',tok:5});
-  if(yes){c.set('gt','done','approved');await c.msg('gt','ex','ok','run action Z',{see:false});c.note('Decided by a human. Nothing irreversible happened before you said yes.','good');
-    c.out(`<p class="big">Approved <span class="good">✓</span> · action executed</p><p>The agents did everything except the one thing that can’t be undone.</p>`)}
-  else{c.set('gt','bad','denied');c.note('Denied: nothing happened. The agents can try another way.','warn');
-    c.out(`<p class="big">Denied · nothing executed</p><p>The pause is the point: the decision stayed with you.</p>`)}}}
+  if(yes){c.set('gt','done','approved');await c.msg('gt','ex','ok','pay ₹5,000',{see:false});c.note('Decided by a human. No money moved before you said yes.','good');
+    c.out(`<p class="big">Approved <span class="good">✓</span> · refund paid</p><p>The agent did everything except the one step that can’t be undone.</p>`)}
+  else{c.set('gt','bad','denied');c.note('Denied: no money moved. The agent can offer store credit instead.','good');
+    c.out(`<p class="big">Denied · nothing paid <span class="good">✓</span></p><p>The pause is the point: the decision stayed with you.</p>`)}},
+ bad:async c=>{
+  c.step('Same approval step, but now it asks about every refund');
+  const R=[['#1183','₹300'],['#1184','₹450'],['#1185','₹200'],['#1186','₹50,000']];
+  for(let i=0;i<R.length;i++){const [o,amt]=R[i],last=i===R.length-1;
+    c.set('ag','active','proposing');await c.msg('ag','gt','task',`refund ${amt} · order ${o}`,{see:`proposal: refund ${amt} for order ${o}`,tok:30});
+    c.set('gt','wait','paused');await c.msg('gt','u','ask',`approve ${amt}?`,{see:false});await c.w(last?300:150);
+    await c.msg('u','gt','ok','approve',{see:false});c.human(i+1);c.log('You:','Approved','warn','var(--accent)');
+    await c.msg('gt','ex','ok','pay '+amt,{see:false,kind:last?'bad':''});
+    if(i===1){c.step('You stop reading and just click Approve');c.note('Third approval in a minute, all small. You stop reading them.','warn')}}
+  c.set('gt','bad','paid ₹50,000');c.set('ag','done','done');
+  c.note('The last one was ₹50,000: a typo for ₹500. You approved it like the others.','bad');
+  c.out(`<p class="big">Approved a ₹50,000 typo <span class="bad">✗</span></p><p>An approval step only works if people read it. Ask for what matters (say, refunds over ₹2,000, or anything that can’t be undone) and let rules handle the rest.</p>`)}}
 ];
 
-let cur=0;
+let cur=0,PART='good';
 SIMS.forEach((P,i)=>{const b=document.createElement('button');b.className='pk';b.setAttribute('aria-pressed','false');
   b.innerHTML=`<b>${String(i+1).padStart(2,'0')}</b><span>${P.name}</span><small>${P.short}</small>`;b.onclick=()=>go(i);$('#pick').append(b)});
-function pcard(P){$('#pcard').innerHTML=`<div class="pc ex"><div><b>Use case</b>${esc(P.uc)}</div><div><b>Real example</b>${esc(P.ex)}</div></div>
-  <div class="pc"><b>Use when</b>${esc(P.when)}</div><div class="pc bad"><b>Watch out</b>${esc(P.risk)}</div>
+// the red "Watch out" card shows only in the bad part, so a pattern is first seen doing its job
+function pcard(P,part){const bad=part==='bad';$('#pcard').innerHTML=`<div class="pc ex"><div><b>Use case</b>${esc(P.uc)}</div><div><b>Real example</b>${esc(P.ex)}</div></div>
+  <div class="pc"${bad?'':' style="grid-column:span 2"'}><b>Use when</b>${esc(P.when)}</div>${bad?`<div class="pc bad"><b>Watch out</b>${esc(P.risk)}</div>`:''}
   <div class="pc lg"><b>In LangGraph</b><code>${esc(P.lg)}</code></div><div class="pc cr"><b>In CrewAI</b><code>${esc(P.cr)}</code></div>`}
-async function go(i){cur=i;const P=SIMS[i];STEPPING=false;setPaused(false);
+async function go(i,part='good'){cur=i;PART=part;const P=SIMS[i];STEPPING=false;setPaused(false);
   document.querySelectorAll('.pk').forEach((b,j)=>b.setAttribute('aria-pressed',j===i));
-  $('#wm').textContent=P.name.toUpperCase();pcard(P);reset();const c=ctx(RUN);
-  try{await P.run(c);if(c.k!==RUN)return;$('#capT').textContent+='  ·  done';
-    if(AUTO&&i<SIMS.length-1){await c.w(3000);go(i+1)}}   // auto-play: a pause to read the outcome, then the next pattern
+  document.querySelectorAll('#parts button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.p===part));
+  $('#wm').textContent=P.name.toUpperCase();pcard(P,part);reset();const c=ctx(RUN);
+  c.phase(part==='good'?'✓ HOW IT WORKS':'⚠ WHERE IT BREAKS');$('#phase').setAttribute('class','phase '+part);
+  try{P.nodes(c);await P[part](c);if(c.k!==RUN)return;$('#capT').textContent+='  ·  done';
+    if(part==='good'){$('#out').insertAdjacentHTML('beforeend','<div class="ctrl"><button class="btn ghost" id="toBad">⚠ Where it breaks →</button></div>');$('#toBad').onclick=()=>go(i,'bad')}
+    if(AUTO){await c.w(3000);if(part==='good')go(i,'bad');else if(i<SIMS.length-1)go(i+1)}}   // auto-play: works, breaks, then the next pattern
   catch(e){if(!(e instanceof Stop))console.error(e)}}
 
 // ---- player controls: restart · pause/play · step · speed · auto-play. Speed and auto-play are remembered.
@@ -872,7 +965,8 @@ SPEEDS.forEach(v=>{const b=document.createElement('button');b.dataset.v=v;b.text
 setSpeed(SPEEDS.includes(+keep.get('talk-speed'))?+keep.get('talk-speed'):1);
 AUTO=keep.get('talk-auto')==='1';$('#auto').checked=AUTO;
 $('#auto').onchange=()=>{AUTO=$('#auto').checked;keep.set('talk-auto',AUTO?'1':'0')};
-$('#replay').onclick=()=>go(cur);
+$('#replay').onclick=()=>go(cur,PART);
+document.querySelectorAll('#parts button').forEach(b=>b.onclick=()=>go(cur,b.dataset.p));
 $('#play').onclick=()=>{STEPPING=false;setPaused(!PAUSED)};
 $('#stepb').onclick=()=>{STEPPING=true;setPaused(false)};
 const nudge=d=>{const i=SPEEDS.indexOf(SPEED);setSpeed(SPEEDS[Math.min(SPEEDS.length-1,Math.max(0,i+d))])};
@@ -1052,7 +1146,7 @@ document.addEventListener('keydown',e=>{if(e.target.closest('input,select,textar
   if(e.key==='PageDown'){e.preventDefault();move(1)}else if(e.key==='PageUp'){e.preventDefault();move(-1)}
   else if(SEC==='patterns'&&!e.target.closest('button')){if(e.key===' '){e.preventDefault();$('#play').click()}
     else if(e.key==='ArrowRight')go(Math.min(cur+1,SIMS.length-1));else if(e.key==='ArrowLeft')go(Math.max(cur-1,0));
-    else if(e.key==='r'||e.key==='R')go(cur);else if(e.key==='n'||e.key==='N')$('#stepb').click();
+    else if(e.key==='r'||e.key==='R')go(cur,PART);else if(e.key==='b'||e.key==='B')go(cur,PART==='good'?'bad':'good');else if(e.key==='n'||e.key==='N')$('#stepb').click();
     else if(e.key==='+'||e.key==='=')nudge(1);else if(e.key==='-'||e.key==='_')nudge(-1)}});
 applyTheme();
 const start=location.hash.slice(1).split('?')[0];
