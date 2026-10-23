@@ -95,40 +95,27 @@ python -m pytest -q               # tests, offline
 To start with Claude as the brain: `LAB_LLM=claude LAB_MODEL=haiku python app.py`
 (PowerShell: `$env:LAB_LLM="claude"; $env:LAB_MODEL="haiku"; python app.py`), or pick it on the page.
 
-## Further practice: notebooks
+## Practice notebooks
 
-These are practice notebooks. Start with the demo itself, step by step, in either framework. Both notebooks are
-standalone, like 01–03: they define their own stores, tools and grader, and need only their framework and an LLM
-key (set in the **Choose your LLM** cell).
+`notebooks/` has five practice Jupyter notebooks to keep for reference after the session. Each one is standalone and
+runs top to bottom.
 
-| Notebook | Framework | What you see |
+| Notebook | Framework | What you learn |
 |---|---|---|
-| `04_shopping_patterns_langgraph` | LangGraph | State, nodes and edges; `Send` and reducers; a critic loop; a subgraph and `interrupt()` |
-| `05_shopping_patterns_crewai` | CrewAI | Agents, tasks and crews; async tasks; a guardrail as the critic; a `Flow` |
+| `01_article_writer` | CrewAI | A sequential crew (Planner → Writer → Editor): each task's output feeds the next |
+| `02_customer_support` | CrewAI | Tools, delegation and memory, with a support rep and a QA reviewer |
+| `03_financial_analysis` | CrewAI | `Process.hierarchical`: a manager agent delegates to analyst, strategist, trade and risk advisors |
+| `04_shopping_patterns_langgraph` | LangGraph | The shoe demo step by step: state, nodes and edges; `Send` and reducers; a critic loop; a subgraph and `interrupt()` |
+| `05_shopping_patterns_crewai` | CrewAI | The same demo in CrewAI: agents, tasks and crews; async tasks; a guardrail as the critic; a `Flow` |
 
 ```bash
-pip install jupyterlab
-jupyter lab notebooks/          # each notebook installs its own framework in its first cell
-```
-
-Then three small CrewAI projects to try on your own after the session. Each runs top to bottom.
-
-| Notebook | Agents | What you learn |
-|---|---|---|
-| `01_article_writer.ipynb` | Planner → Writer → Editor | A sequential crew; each task's output feeds the next |
-| `02_customer_support.ipynb` | Support rep + QA reviewer | Tools, delegation, memory |
-| `03_financial_analysis.ipynb` | Analyst, strategist, trade and risk advisors | `Process.hierarchical`: a manager agent delegates |
-
-These need Python 3.10–3.13, like the CrewAI version of the demo.
-
-```bash
-pip install -r requirements-crewai.txt jupyterlab
+pip install -r requirements-crewai.txt jupyterlab   # CrewAI needs Python 3.10–3.13
 jupyter lab notebooks/
 ```
 
-In the **Choose your LLM** cell, set `PROVIDER` (`gemini`, `openai`, `anthropic`, `openrouter` or `ollama`) and
-paste its key. Gemini has a free key from [Google AI Studio](https://aistudio.google.com/api-keys); Ollama needs no
-key at all.
+Notebooks 04 and 05 install their own framework in their first cell. In each notebook's **Choose your LLM** cell,
+set `PROVIDER` (`gemini`, `openai`, `anthropic`, `openrouter` or `ollama`) and paste its key. Gemini has a free key
+from [Google AI Studio](https://aistudio.google.com/api-keys); Ollama needs no key at all.
 
 **More ideas to try in this repo:** add a ₹599 "Campus" shoe from an unverified seller to `data/shoes.json` and
 see which levels buy it, or give L1 a seller-check worker and compare its token cost to L2.
@@ -143,7 +130,7 @@ patterns/     LangGraph versions        crews/   CrewAI versions
 lab/          guardrails lab, Claude bridge, servers
 web/          the talk and demo pages
 data/         demo stores and a recorded live collection
-notebooks/    the demo as a notebook, and CrewAI practice notebooks
+notebooks/    practice Jupyter notebooks
 tests/
 docs/         README screenshots
 ```
