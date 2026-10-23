@@ -142,6 +142,8 @@ svg.g{display:block;width:100%;height:auto}
 .pc{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:13.5px}
 .pc b{display:block;font-family:var(--f-mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:3px}
 .pc.lg b{color:var(--lg)} .pc.cr b{color:var(--cr)} .pc.bad b{color:var(--bad)}
+.pc.ex{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:16px} .pc.ex b{color:var(--accent)}
+@media (max-width:640px){.pc.ex{grid-template-columns:1fr}}
 .pc code{color:var(--data);font-size:12px;white-space:pre-wrap}
 /* graph */
 .edge{stroke:var(--line);stroke-width:1.6;fill:none;transition:stroke .35s}
@@ -664,6 +666,8 @@ function ctx(k){
 // ---- the eight simulations. Each one: nodes, messages, and what lands in whose context window.
 const SIMS=[
 {key:'seq',name:'Sequential handoff',short:'a fixed chain of agents',
+ uc:'Writing a blog post: Researcher → Writer → Editor. Only the Researcher read the brief, so the Editor polishes a post with no sources and no call to action.',
+ ex:'Kiro (AWS): its spec workflow writes requirements.md, then design.md, then tasks.md, each built on the last and approved before the next.',
  when:'Steps are known and never change: ETL, form processing, a review chain.',risk:'Every handoff is a bottleneck: the next agent only knows what the last one chose to pass on.',
  lg:'g.add_edge("a", "b")\ng.add_edge("b", "c")',cr:'Crew(tasks=[a, b, c],\n     process=Process.sequential)',
  run:async c=>{c.human(1);
@@ -685,6 +689,8 @@ const SIMS=[
   c.out(`<p class="big">Output meets R1, misses R2 and R3 <span class="bad">✗</span></p><p>Each handoff narrows what the next agent knows. Pass the goal along with the work, or hand off a structured result that says what is still open.</p>`)}},
 
 {key:'ctx',name:'Selective context',short:'each agent sees only what it needs',
+ uc:'A market report: three section writers, a Lead and a Fact-checker. Given the Lead’s reasoning, the Fact-checker agrees; given only the draft and the checklist, it finds the missing pricing table.',
+ ex:'Claude Code subagents: each works in its own clean context window and sends back only a short summary.',
  when:'Always. Give every agent a brief: its objective, its inputs, the output you want back.',risk:'Share everything and context windows fill with noise, cost more, and a reviewer anchors on the author’s reasoning.',
  lg:'Send("worker", {"subtask": s})\n# a node reads only the keys it needs',cr:'Task(..., context=[research])\n# only these outputs reach the task',
  run:async c=>{c.human(1);
@@ -716,6 +722,8 @@ const SIMS=[
   c.out(`<p class="big">Run 1: the gap slipped through <span class="bad">✗</span> · Run 2: caught it <span class="good">✓</span></p><p>Same agents. Run 1 put <b>${t1.toLocaleString('en-IN')}</b> tokens into context windows; run 2, with a brief for each agent, <b>${c.tok().toLocaleString('en-IN')}</b>. And the reviewer checked the work against the criteria.</p>`)}},
 
 {key:'hier',name:'Hierarchical process',short:'a manager delegates, workers report back',
+ uc:'A research report: a Manager briefs a Researcher, a Writer and a Verifier. Two sources disagree, so the Manager adds a verification step nobody planned.',
+ ex:'Magentic orchestration (Microsoft Agent Framework): a manager keeps a task ledger and a progress ledger, picks who acts next, and replans when progress stalls.',
  when:'Open-ended work where the next step depends on the last result.',risk:'The manager is a bottleneck and a single point of failure; its context grows with every report.',
  lg:'g.add_conditional_edges("manager", route,\n    ["research", "draft", "verify", END])',cr:'Crew(..., process=Process.hierarchical,\n     manager_llm=llm)',
  run:async c=>{c.human(1);
@@ -739,6 +747,8 @@ const SIMS=[
   c.out(`<p class="big">Delivered, with a step nobody planned <span class="good">✓</span></p><p>The manager adapted the plan at run time. The price: every report flows through one agent, and its context keeps growing.</p>`)}},
 
 {key:'par',name:'Parallel fan-out / fan-in',short:'many agents at once, one waits for all',
+ uc:'Planning a trip: Flights, Hotels and Weather agents search at once, and the Itinerary builder waits for the slow Hotels agent.',
+ ex:'Claude Research (Anthropic): a lead agent runs subagents in parallel, at about 15× the tokens of a chat.',
  when:'Independent subtasks: sources, files, regions, candidates.',risk:'One slow agent holds everyone up, and every extra agent adds tokens.',
  lg:'[Send("worker", {"part": p}) for p in parts]\ng.add_edge("worker", "aggregate")  # fan in',cr:'Task(..., async_execution=True)  # per part\nTask(..., context=[a, b, c])      # fan in',
  run:async c=>{c.human(1);
@@ -756,6 +766,8 @@ const SIMS=[
   c.out(`<p class="big">Three parts in the time of the slowest one</p><p>Fan out when the work is independent; the join waits for everyone, so the slowest branch sets the pace.</p>`)}},
 
 {key:'crit',name:'Critic loop',short:'a reviewer can send work back',
+ uc:'Writing code: a Coder and a Reviewer who runs the tests. v1 fails on an empty list and goes back with that feedback; v2 passes. At most 3 attempts.',
+ ex:'AlphaEvolve (Google DeepMind): Gemini writes code, automated evaluators score it, the best versions are refined. One result recovers about 0.7% of Google’s compute.',
  when:'Anything where a wrong answer is costly: actions, code, claims.',risk:'Loops forever without a limit. A reviewer that shares the author’s context shares its blind spots.',
  lg:'g.add_conditional_edges("review", verdict,\n    ["generate", END])',cr:'Task(..., guardrail=check,\n     guardrail_max_retries=2)',
  run:async c=>{c.human(1);
@@ -773,6 +785,8 @@ const SIMS=[
   c.out(`<p class="big">Approved on attempt 2 <span class="good">✓</span></p><p>One rejection, one retry. The loop is cheap insurance, as long as it has a limit.</p>`)}},
 
 {key:'board',name:'Shared state · blackboard',short:'agents read and write one board',
+ uc:'An incident war room: Logs and Metrics agents add findings to one board. The Lead decides the root cause; the Reviewer only writes a verdict.',
+ ex:'Claude Code Agent Teams: teammates share one task list and claim tasks from it, with dependencies unblocking automatically.',
  when:'Many specialists contribute pieces; the order isn’t known up front.',risk:'Two agents writing the same field make conflicting decisions. Keep one writer per decision.',
  lg:'findings: Annotated[list, operator.add]\n# a reducer merges parallel writes',cr:'class State(BaseModel): ...\nclass F(Flow[State]):  # self.state',
  run:async c=>{c.human(1);
@@ -793,6 +807,8 @@ const SIMS=[
   c.out(`<p class="big">Shared state works, with two rules</p><p>Merge parallel writes with a reducer; give each decision a single writer. The reviewer writes a verdict, only the lead writes the decision.</p>`)}},
 
 {key:'event',name:'Event-driven',short:'something changes, agents start',
+ uc:'On-call at 3 a.m.: an error spike wakes a Watcher, a team investigates, a Reviewer checks, and your first involvement is “Deploy #42 caused it. Roll back?”',
+ ex:'Datadog Bits AI SRE: an alert fires and the agent starts investigating on its own, around the clock.',
  when:'Alerts, tickets, prices, files arriving: work that should start itself.',risk:'Nobody is watching when it starts. It needs a budget, a stop rule and a human for anything irreversible.',
  lg:'# an event handler calls the graph\ngraph.invoke({"event": alert})',cr:'class Watch(Flow):\n  @start() … @router(…) … @listen("go")',
  run:async c=>{c.human(0);
@@ -811,6 +827,8 @@ const SIMS=[
   c.out(`<p class="big">The work started itself</p><p>Something changed, not someone typing. That’s why the next pattern matters.</p>`)}},
 
 {key:'hitl',name:'Human in the loop',short:'pause, ask, resume',
+ uc:'A customer refund: the Support agent proposes a $500 refund, the graph pauses and saves its state, and nothing is paid until you approve.',
+ ex:'ChatGPT agent (OpenAI): it browses and fills forms by itself, but stops to ask you before purchases, logins and other consequential steps.',
  when:'Anything irreversible: payments, deletes, emails, deploys.',risk:'Without it an agent can spend, delete or send with nobody asked. With it, the graph must be able to wait.',
  lg:'answer = interrupt(proposal)   # pauses, state saved\ngraph.invoke(Command(resume="approve"), cfg)',cr:'Task(..., human_input=True)\n# or @human_feedback in a Flow',
  run:async c=>{c.human(0);
@@ -835,7 +853,8 @@ const SIMS=[
 let cur=0;
 SIMS.forEach((P,i)=>{const b=document.createElement('button');b.className='pk';b.setAttribute('aria-pressed','false');
   b.innerHTML=`<b>${String(i+1).padStart(2,'0')}</b><span>${P.name}</span><small>${P.short}</small>`;b.onclick=()=>go(i);$('#pick').append(b)});
-function pcard(P){$('#pcard').innerHTML=`<div class="pc"><b>Use when</b>${esc(P.when)}</div><div class="pc bad"><b>Watch out</b>${esc(P.risk)}</div>
+function pcard(P){$('#pcard').innerHTML=`<div class="pc ex"><div><b>Use case</b>${esc(P.uc)}</div><div><b>Real example</b>${esc(P.ex)}</div></div>
+  <div class="pc"><b>Use when</b>${esc(P.when)}</div><div class="pc bad"><b>Watch out</b>${esc(P.risk)}</div>
   <div class="pc lg"><b>In LangGraph</b><code>${esc(P.lg)}</code></div><div class="pc cr"><b>In CrewAI</b><code>${esc(P.cr)}</code></div>`}
 async function go(i){cur=i;const P=SIMS[i];STEPPING=false;setPaused(false);
   document.querySelectorAll('.pk').forEach((b,j)=>b.setAttribute('aria-pressed',j===i));

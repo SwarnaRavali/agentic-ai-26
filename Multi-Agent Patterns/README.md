@@ -95,9 +95,23 @@ python -m pytest -q               # tests, offline
 To start with Claude as the brain: `LAB_LLM=claude LAB_MODEL=haiku python app.py`
 (PowerShell: `$env:LAB_LLM="claude"; $env:LAB_MODEL="haiku"; python app.py`), or pick it on the page.
 
-## Further practice: CrewAI notebooks
+## Further practice: notebooks
 
-Three small CrewAI projects in `notebooks/` to try on your own after the session. Each runs top to bottom.
+These are practice notebooks. Start with the demo itself, step by step, in either framework. Both notebooks are
+standalone, like 01–03: they define their own stores, tools and grader, and need only their framework and an LLM
+key (set in the **Choose your LLM** cell).
+
+| Notebook | Framework | What you see |
+|---|---|---|
+| `04_shopping_patterns_langgraph` | LangGraph | State, nodes and edges; `Send` and reducers; a critic loop; a subgraph and `interrupt()` |
+| `05_shopping_patterns_crewai` | CrewAI | Agents, tasks and crews; async tasks; a guardrail as the critic; a `Flow` |
+
+```bash
+pip install jupyterlab
+jupyter lab notebooks/          # each notebook installs its own framework in its first cell
+```
+
+Then three small CrewAI projects to try on your own after the session. Each runs top to bottom.
 
 | Notebook | Agents | What you learn |
 |---|---|---|
@@ -129,7 +143,7 @@ patterns/     LangGraph versions        crews/   CrewAI versions
 lab/          guardrails lab, Claude bridge, servers
 web/          the talk and demo pages
 data/         demo stores and a recorded live collection
-notebooks/    CrewAI practice notebooks
+notebooks/    the demo as a notebook, and CrewAI practice notebooks
 tests/
 docs/         README screenshots
 ```
