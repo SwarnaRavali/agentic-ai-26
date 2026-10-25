@@ -1,0 +1,9 @@
+
+
+1) To create an account on Livekit, sign up on https://cloud.livekit.io/
+
+2) Tripmate catalog: https://docs.google.com/spreadsheets/d/1OglCBcP7h2xMuteumovEY81eh_-bpr-hp_vyQ2lnWSs/edit?usp=sharing
+
+3) Frontend URL: https://tripmate-ai-blond.vercel.app/
+
+4) Colab Notebook: https://colab.research.google.com/drive/1pFt9b68Yyab9xpPghjl6IGpUBYhS9EX_
