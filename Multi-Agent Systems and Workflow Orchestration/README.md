@@ -2,7 +2,7 @@
 
 Workshop by Rahul Verma for IEEE AgenticAI Summit 2026 at IISc Bangalore, 30–31 October 2026.
 
-[Download the presentation](slides/multi-agent-systems-workflow-orchestration.pptx)
+[Download the presentation](slides/multi-agent-systems-workflow-orchestration.key)
 
 ## Contents
 
@@ -11,7 +11,7 @@ Multi-Agent Systems and Workflow Orchestration/
 ├── README.md
 ├── .gitignore
 ├── slides/
-│   └── multi-agent-systems-workflow-orchestration.pptx
+│   └── multi-agent-systems-workflow-orchestration.key
 └── demos/
     ├── crewai_lab/          # Visual builder, CrewAI tasks and typed contracts
     ├── marketplace_service/ # Browser evidence, ranking and simulated actions
