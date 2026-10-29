@@ -6,19 +6,20 @@ four of them as real agents in [LangGraph](https://github.com/langchain-ai/langg
 
 <p align="center">
   <img src="docs/screenshots/patterns-hierarchical.gif" width="640"
-       alt="Animated simulation: a manager agent delegates to a researcher and a writer, then adds a verifier step nobody planned">
+       alt="Animated simulation of the hierarchical pattern: first a manager adds a fact-check nobody planned; then, buried in its workers' full reports, it ships the blog post without the sign-up CTA from the brief">
 </p>
 
 ## What you'll see
 
-**Eight coordination patterns, animated.** Watch messages move between agents, and see what lands in each agent's
-context window and how many tokens it costs.
+**Eight coordination patterns, animated.** Each one plays twice on an everyday task: first **how it works**, then
+**where it breaks**. Watch messages move between agents, and see what lands in each agent's context window and how
+many tokens it costs.
 
-| Hierarchical process | Parallel fan-out / fan-in |
-|---|---|
-| ![A manager delegates and adds a verifier when two sources disagree](docs/screenshots/pattern-hierarchical.png) | ![Three workers run at once; the aggregator waits for the slowest](docs/screenshots/pattern-fan-out-fan-in.png) |
-| **Critic loop** | **Event-driven** |
-| ![A reviewer flags the draft and sends it back for rework](docs/screenshots/pattern-critic-loop.png) | ![A price change wakes the team, which asks you before acting](docs/screenshots/pattern-event-driven.png) |
+| | ✓ How it works | ⚠ Where it breaks |
+|---|---|---|
+| **Parallel fan-out / fan-in** | ![Flights, weather and hotels are searched at once; a 3-day Goa plan is ready in the time of one search](docs/screenshots/pattern-fan-out-fan-in-works.png) | ![Hotels checks 40 sites, so the itinerary waits for the slowest branch](docs/screenshots/pattern-fan-out-fan-in-breaks.png) |
+| **Critic loop** | ![The tester catches a crash on an empty list; the coder fixes it and it is approved on attempt 2](docs/screenshots/pattern-critic-loop-works.png) | ![The price API is down, so no code change can pass; the loop stops after 3 attempts and asks a human](docs/screenshots/pattern-critic-loop-breaks.png) |
+| **Event-driven** | ![An error spike at 3 a.m. wakes the team, which investigates and asks you before rolling back](docs/screenshots/pattern-event-driven-works.png) | ![Nobody checks or asks: the on-call team guesses wrong and makes changes in production while you sleep](docs/screenshots/pattern-event-driven-breaks.png) |
 
 **The live demo runs real LangGraph graphs and CrewAI crews.** Here Level 2 sends three scouts to the stores in
 parallel, and the critic rejects a fake reseller before anything is bought:
@@ -95,27 +96,51 @@ python -m pytest -q               # tests, offline
 To start with Claude as the brain: `LAB_LLM=claude LAB_MODEL=haiku python app.py`
 (PowerShell: `$env:LAB_LLM="claude"; $env:LAB_MODEL="haiku"; python app.py`), or pick it on the page.
 
-## Practice notebooks
+## Further practice: notebooks
 
-`notebooks/` has five practice Jupyter notebooks to keep for reference after the session. Each one is standalone and
-runs top to bottom.
+These are practice notebooks. Start with the demo itself, step by step, in either framework. Both notebooks are
+standalone, like 01–03: they define their own stores, tools and grader, and need only their framework and an LLM
+key (set in the **Choose your LLM** cell).
 
-| Notebook | Framework | What you learn |
+| Notebook | Framework | What you see |
 |---|---|---|
-| `01_article_writer` | CrewAI | A sequential crew (Planner → Writer → Editor): each task's output feeds the next |
-| `02_customer_support` | CrewAI | Tools, delegation and memory, with a support rep and a QA reviewer |
-| `03_financial_analysis` | CrewAI | `Process.hierarchical`: a manager agent delegates to analyst, strategist, trade and risk advisors |
-| `04_shopping_patterns_langgraph` | LangGraph | The shoe demo step by step: state, nodes and edges; `Send` and reducers; a critic loop; a subgraph and `interrupt()` |
-| `05_shopping_patterns_crewai` | CrewAI | The same demo in CrewAI: agents, tasks and crews; async tasks; a guardrail as the critic; a `Flow` |
+| `04_shopping_patterns_langgraph` | LangGraph | State, nodes and edges; `Send` and reducers; a critic loop; a subgraph and `interrupt()` |
+| `05_shopping_patterns_crewai` | CrewAI | Agents, tasks and crews; async tasks; a guardrail as the critic; a `Flow` |
 
 ```bash
-pip install -r requirements-crewai.txt jupyterlab   # CrewAI needs Python 3.10–3.13
+pip install jupyterlab
+jupyter lab notebooks/          # each notebook installs its own framework in its first cell
+```
+
+Then build your own research team. Claude's Research mode is a multi-agent system: a lead agent plans and
+sends subagents to work in parallel. Two notebooks build the same small version of it, one per framework, like
+04 and 05. The agents answer from the model's own knowledge, so all you need is an LLM key. Both run locally or
+in Google Colab.
+
+| Notebook | Agents | What you see |
+|---|---|---|
+| `07_deep_research_crewai` [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Jaskamalkainth/Multi-Agent-Patterns/blob/main/notebooks/07_deep_research_crewai.ipynb) | Lead → researchers in parallel → writer | **Start here.** About 50 lines of CrewAI, in the style of notebook 01; the new idea is `async_execution=True`. In Colab, setup is two short forms and the topic, team size and parallel switch are form fields |
+| `06_deep_research_langgraph` [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Jaskamalkainth/Multi-Agent-Patterns/blob/main/notebooks/06_deep_research_langgraph.ipynb) | Lead → researchers in parallel → review loop → writer | The same team in LangGraph: `Send` and a reducer for the parallel researchers, a conditional edge for the review loop. Adds a citation check, timeline charts, a live prompt editor and a quiz |
+
+Then three small CrewAI projects to try on your own after the session. Each runs top to bottom.
+
+| Notebook | Agents | What you learn |
+|---|---|---|
+| `01_article_writer.ipynb` | Planner → Writer → Editor | A sequential crew; each task's output feeds the next |
+| `02_customer_support.ipynb` | Support rep + QA reviewer | Tools, delegation, memory |
+| `03_financial_analysis.ipynb` | Analyst, strategist, trade and risk advisors | `Process.hierarchical`: a manager agent delegates |
+
+These need Python 3.10–3.13, like the CrewAI version of the demo.
+
+```bash
+pip install -r requirements-crewai.txt jupyterlab
 jupyter lab notebooks/
 ```
 
-Notebooks 04 and 05 install their own framework in their first cell. In each notebook's **Choose your LLM** cell,
-set `PROVIDER` (`gemini`, `openai`, `anthropic`, `openrouter` or `ollama`) and paste its key. Gemini has a free key
-from [Google AI Studio](https://aistudio.google.com/api-keys); Ollama needs no key at all.
+In the **Choose your LLM** cell, set `PROVIDER` (`gemini`, `openai`, `anthropic`, `openrouter`, `groq` or `ollama`)
+and paste its key. Two providers have free keys: Gemini from [Google AI Studio](https://aistudio.google.com/api-keys)
+and Groq from [console.groq.com/keys](https://console.groq.com/keys) (it runs `openai/gpt-oss-20b`, and its free
+tier has per-minute limits, so the notebooks retry when it answers 429). Ollama needs no key at all.
 
 **More ideas to try in this repo:** add a ₹599 "Campus" shoe from an unverified seller to `data/shoes.json` and
 see which levels buy it, or give L1 a seller-check worker and compare its token cost to L2.
@@ -130,7 +155,7 @@ patterns/     LangGraph versions        crews/   CrewAI versions
 lab/          guardrails lab, Claude bridge, servers
 web/          the talk and demo pages
 data/         demo stores and a recorded live collection
-notebooks/    practice Jupyter notebooks
+notebooks/    the demo as a notebook, build-your-own deep research, CrewAI practice notebooks
 tests/
 docs/         README screenshots
 ```

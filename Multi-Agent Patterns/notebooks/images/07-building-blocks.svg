@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 240" width="860" height="240" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" role="img" aria-label="CrewAI's three building blocks: an Agent is who does the work, a Task is what to do, and a Crew is the team that runs the tasks">
+  <defs>
+    <filter id="s" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-opacity="0.15"/></filter>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#52514e"/></marker>
+  </defs>
+  <rect width="860" height="240" rx="16" fill="#fcfcfb"/>
+  <text x="430" y="34" text-anchor="middle" font-size="20" font-weight="700" fill="#0b0b0b">Three building blocks: that's all of CrewAI you need</text>
+
+  <g filter="url(#s)">
+    <rect x="30" y="56" width="240" height="160" rx="14" fill="#ffffff" stroke="#e4e3de"/>
+    <rect x="310" y="56" width="240" height="160" rx="14" fill="#ffffff" stroke="#e4e3de"/>
+    <rect x="590" y="56" width="240" height="160" rx="14" fill="#ffffff" stroke="#e4e3de"/>
+  </g>
+  <rect x="30" y="56" width="240" height="8" rx="4" fill="#2a78d6"/>
+  <rect x="310" y="56" width="240" height="8" rx="4" fill="#eb6834"/>
+  <rect x="590" y="56" width="240" height="8" rx="4" fill="#1baf7a"/>
+
+  <text x="56" y="104" font-size="30">🧑‍💼</text>
+  <text x="100" y="94" font-size="19" font-weight="700" fill="#0b0b0b">Agent</text>
+  <text x="100" y="113" font-size="13" fill="#52514e">who does the work</text>
+  <g font-size="12.5" fill="#0b0b0b" font-family="ui-monospace, Menlo, Consolas, monospace">
+    <text x="56" y="146">role</text><text x="56" y="168">goal</text><text x="56" y="190">backstory</text>
+  </g>
+  <g font-size="12" fill="#52514e">
+    <text x="140" y="146">the job title</text><text x="140" y="168">judged on this</text><text x="140" y="190">context, limits</text>
+  </g>
+
+  <text x="336" y="104" font-size="30">📋</text>
+  <text x="380" y="94" font-size="19" font-weight="700" fill="#0b0b0b">Task</text>
+  <text x="380" y="113" font-size="13" fill="#52514e">what to do</text>
+  <g font-size="12.5" fill="#0b0b0b" font-family="ui-monospace, Menlo, Consolas, monospace">
+    <text x="336" y="146">description</text><text x="336" y="168">expected_output</text><text x="336" y="190">agent</text>
+  </g>
+  <g font-size="12" fill="#52514e">
+    <text x="470" y="146">the brief</text><text x="470" y="168">finish line</text><text x="470" y="190">who does it</text>
+  </g>
+
+  <text x="616" y="104" font-size="30">👥</text>
+  <text x="660" y="94" font-size="19" font-weight="700" fill="#0b0b0b">Crew</text>
+  <text x="660" y="113" font-size="13" fill="#52514e">the team</text>
+  <g font-size="12.5" fill="#0b0b0b" font-family="ui-monospace, Menlo, Consolas, monospace">
+    <text x="616" y="146">agents</text><text x="616" y="168">tasks</text><text x="616" y="190">kickoff_async()</text>
+  </g>
+  <g font-size="12" fill="#52514e">
+    <text x="720" y="146">who's on it</text><text x="720" y="168">in this order</text><text x="740" y="190">go!</text>
+  </g>
+
+  <line x1="272" y1="136" x2="306" y2="136" stroke="#52514e" stroke-width="2" marker-end="url(#a)"/>
+  <line x1="552" y1="136" x2="586" y2="136" stroke="#52514e" stroke-width="2" marker-end="url(#a)"/>
+</svg>

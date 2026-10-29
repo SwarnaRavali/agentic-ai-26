@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 560" width="760" height="560" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" role="img" aria-label="How Claude's Research mode works: a lead researcher plans, three subagents search in parallel, the lead reviews and may loop, a citation agent ties claims to sources, and a report comes out">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#52514e"/></marker>
+  </defs>
+  <rect width="760" height="560" rx="16" fill="#fcfcfb"/>
+  <text x="380" y="34" text-anchor="middle" font-size="19" font-weight="700" fill="#0b0b0b">Inside a Deep Research run</text>
+  <text x="380" y="56" text-anchor="middle" font-size="13" fill="#52514e">The design Anthropic describes for Claude's Research mode</text>
+
+  <!-- question -->
+  <rect x="300" y="74" width="160" height="34" rx="17" fill="#ffffff" stroke="#b9b8b2"/>
+  <text x="380" y="96" text-anchor="middle" font-size="14" fill="#0b0b0b">❓ your question</text>
+  <line x1="380" y1="108" x2="380" y2="128" stroke="#52514e" stroke-width="2" marker-end="url(#a)"/>
+
+  <!-- lead plan -->
+  <rect x="250" y="130" width="260" height="56" rx="10" fill="#2a78d6"/>
+  <text x="380" y="154" text-anchor="middle" font-size="15" font-weight="700" fill="#ffffff">🧭 Lead researcher</text>
+  <text x="380" y="174" text-anchor="middle" font-size="12.5" fill="#ffffff">writes a plan, splits the work</text>
+
+  <!-- fan out -->
+  <path d="M300 186 C 300 210, 140 205, 140 236" fill="none" stroke="#52514e" stroke-width="2" marker-end="url(#a)"/>
+  <line x1="380" y1="186" x2="380" y2="236" stroke="#52514e" stroke-width="2" marker-end="url(#a)"/>
+  <path d="M460 186 C 460 210, 620 205, 620 236" fill="none" stroke="#52514e" stroke-width="2" marker-end="url(#a)"/>
+  <text x="372" y="218" text-anchor="end" font-size="12" font-style="italic" fill="#52514e">fan out</text>
+
+  <!-- subagents -->
+  <g>
+    <rect x="60" y="238" width="160" height="78" rx="10" fill="#eb6834"/>
+    <text x="140" y="262" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">🔎 Subagent 1</text>
+    <rect x="76" y="272" width="128" height="32" rx="5" fill="#ffffff" opacity="0.92"/>
+    <text x="140" y="292" text-anchor="middle" font-size="11.5" fill="#52514e">own context window</text>
+  </g>
+  <g>
+    <rect x="300" y="238" width="160" height="78" rx="10" fill="#eb6834"/>
+    <text x="380" y="262" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">🔎 Subagent 2</text>
+    <rect x="316" y="272" width="128" height="32" rx="5" fill="#ffffff" opacity="0.92"/>
+    <text x="380" y="292" text-anchor="middle" font-size="11.5" fill="#52514e">own context window</text>
+  </g>
+  <g>
+    <rect x="540" y="238" width="160" height="78" rx="10" fill="#eb6834"/>
+    <text x="620" y="262" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">🔎 Subagent 3</text>
+    <rect x="556" y="272" width="128" height="32" rx="5" fill="#ffffff" opacity="0.92"/>
+    <text x="620" y="292" text-anchor="middle" font-size="11.5" fill="#52514e">own context window</text>
+  </g>
+  <text x="380" y="334" text-anchor="middle" font-size="12" fill="#52514e">search · read · send back short notes — all at the same time</text>
+
+  <!-- fan in -->
+  <path d="M140 316 C 140 360, 290 350, 300 378" fill="none" stroke="#52514e" stroke-width="2" marker-end="url(#a)"/>
+  <line x1="380" y1="342" x2="380" y2="378" stroke="#52514e" stroke-width="2" marker-end="url(#a)"/>
+  <path d="M620 316 C 620 360, 470 350, 460 378" fill="none" stroke="#52514e" stroke-width="2" marker-end="url(#a)"/>
+  <text x="388" y="366" text-anchor="start" font-size="12" font-style="italic" fill="#52514e">fan in</text>
+
+  <!-- lead review -->
+  <rect x="250" y="380" width="260" height="52" rx="10" fill="#2a78d6"/>
+  <text x="380" y="403" text-anchor="middle" font-size="15" font-weight="700" fill="#ffffff">🧭 Lead reviews</text>
+  <text x="380" y="422" text-anchor="middle" font-size="12.5" fill="#ffffff">enough? if not, send more subagents</text>
+  <!-- loop -->
+  <path d="M510 406 C 735 406, 735 160, 512 158" fill="none" stroke="#2a78d6" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#a)"/>
+  <text x="712" y="285" text-anchor="middle" font-size="12" font-style="italic" fill="#2a78d6" transform="rotate(90 712 285)">gaps? another round</text>
+
+  <line x1="380" y1="432" x2="380" y2="452" stroke="#52514e" stroke-width="2" marker-end="url(#a)"/>
+  <rect x="250" y="454" width="260" height="44" rx="10" fill="#1baf7a"/>
+  <text x="380" y="481" text-anchor="middle" font-size="15" font-weight="700" fill="#ffffff">🔗 Citation agent</text>
+  <line x1="380" y1="498" x2="380" y2="516" stroke="#52514e" stroke-width="2" marker-end="url(#a)"/>
+  <rect x="290" y="518" width="180" height="30" rx="15" fill="#ffffff" stroke="#b9b8b2"/>
+  <text x="380" y="538" text-anchor="middle" font-size="14" fill="#0b0b0b">📄 report with sources</text>
+</svg>

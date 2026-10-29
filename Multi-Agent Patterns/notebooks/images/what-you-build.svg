@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 250" width="760" height="250" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" role="img" aria-label="What you build: plan, then researchers in parallel, then review which can loop back, then write and check citations">
+  <defs>
+    <marker id="c" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#52514e"/></marker>
+  </defs>
+  <rect width="760" height="250" rx="16" fill="#fcfcfb"/>
+  <text x="380" y="32" text-anchor="middle" font-size="19" font-weight="700" fill="#0b0b0b">What you'll build in this notebook</text>
+
+  <rect x="30" y="80" width="130" height="62" rx="10" fill="#2a78d6"/>
+  <text x="95" y="106" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">🧭 plan()</text>
+  <text x="95" y="126" text-anchor="middle" font-size="11.5" fill="#fff">split the question</text>
+
+  <line x1="160" y1="111" x2="196" y2="111" stroke="#52514e" stroke-width="2" marker-end="url(#c)"/>
+  <rect x="208" y="70" width="140" height="62" rx="10" fill="#eb6834" opacity="0.55"/>
+  <rect x="200" y="78" width="140" height="62" rx="10" fill="#eb6834" stroke="#fcfcfb" stroke-width="2"/>
+  <text x="270" y="104" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">🔎 researcher() ×N</text>
+  <text x="270" y="124" text-anchor="middle" font-size="11.5" fill="#fff">all at once, via Send</text>
+
+  <line x1="340" y1="111" x2="376" y2="111" stroke="#52514e" stroke-width="2" marker-end="url(#c)"/>
+  <rect x="380" y="80" width="130" height="62" rx="10" fill="#2a78d6"/>
+  <text x="445" y="106" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">🧭 review()</text>
+  <text x="445" y="126" text-anchor="middle" font-size="11.5" fill="#fff">enough?</text>
+  <path d="M445 80 C 445 48, 300 44, 290 66" fill="none" stroke="#2a78d6" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#c)"/>
+  <text x="462" y="66" text-anchor="start" font-size="11.5" font-style="italic" fill="#2a78d6">not enough: new tasks</text>
+
+  <line x1="510" y1="111" x2="546" y2="111" stroke="#52514e" stroke-width="2" marker-end="url(#c)"/>
+  <rect x="550" y="80" width="180" height="62" rx="10" fill="#1baf7a"/>
+  <text x="640" y="106" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">✍️ write()</text>
+  <text x="640" y="126" text-anchor="middle" font-size="11.5" fill="#fff">+ check_citations() in code</text>
+
+  <g font-size="11.5" fill="#52514e" text-anchor="middle">
+    <text x="95" y="168">Hierarchical</text><text x="95" y="184">process</text>
+    <text x="270" y="168">Fan-out / fan-in,</text><text x="270" y="184">selective context</text>
+    <text x="445" y="168">Critic loop</text>
+    <text x="640" y="168">Sequential handoff,</text><text x="640" y="184">a check in code</text>
+  </g>
+  <text x="380" y="226" text-anchor="middle" font-size="12.5" fill="#0b0b0b">Each box is a prompt plus a Python function. The pattern each one uses, in grey.</text>
+</svg>

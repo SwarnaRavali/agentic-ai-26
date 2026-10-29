@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 340" width="760" height="340" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" role="img" aria-label="Selective context: one agent reads every page in one context window, while in a team each researcher reads only its own pages and the lead reads only short notes">
+  <defs>
+    <marker id="b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#52514e"/></marker>
+    <g id="page"><rect width="74" height="9" rx="2" fill="#b9b8b2"/></g>
+    <g id="note"><rect width="54" height="7" rx="2" fill="#2a78d6" opacity="0.55"/></g>
+  </defs>
+  <rect width="760" height="340" rx="16" fill="#fcfcfb"/>
+  <text x="380" y="32" text-anchor="middle" font-size="19" font-weight="700" fill="#0b0b0b">Who reads what? Selective context</text>
+
+  <!-- left: one agent -->
+  <text x="160" y="66" text-anchor="middle" font-size="15" font-weight="700" fill="#0b0b0b">🧑 One agent</text>
+  <rect x="70" y="80" width="180" height="200" rx="10" fill="#ffffff" stroke="#6250d6" stroke-width="2"/>
+  <text x="160" y="100" text-anchor="middle" font-size="11.5" fill="#52514e">one context window</text>
+  <g transform="translate(83,110)">
+    <use href="#page"/><use href="#page" x="80"/>
+    <use href="#page" y="15"/><use href="#page" x="80" y="15"/>
+    <use href="#page" y="30"/><use href="#page" x="80" y="30"/>
+    <use href="#page" y="45"/><use href="#page" x="80" y="45"/>
+    <use href="#page" y="60"/><use href="#page" x="80" y="60"/>
+    <use href="#page" y="75"/><use href="#page" x="80" y="75"/>
+    <use href="#page" y="90"/><use href="#page" x="80" y="90"/>
+    <use href="#page" y="105"/><use href="#page" x="80" y="105"/>
+    <use href="#page" y="120"/><use href="#page" x="80" y="120"/>
+    <use href="#page" y="135"/><use href="#page" x="80" y="135"/>
+  </g>
+  <text x="160" y="304" text-anchor="middle" font-size="12.5" fill="#52514e">every page, every angle, one place</text>
+  <text x="160" y="322" text-anchor="middle" font-size="12.5" fill="#52514e">→ it fills up, and reads one thing at a time</text>
+
+  <line x1="330" y1="70" x2="330" y2="310" stroke="#e4e3de" stroke-width="2"/>
+
+  <!-- right: team -->
+  <text x="545" y="66" text-anchor="middle" font-size="15" font-weight="700" fill="#0b0b0b">👥 A team</text>
+  <g font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">
+    <rect x="365" y="80" width="100" height="86" rx="8" fill="#ffffff" stroke="#eb6834" stroke-width="2"/>
+    <rect x="365" y="80" width="100" height="20" rx="8" fill="#eb6834"/><text x="415" y="94">🔎 researcher</text>
+    <rect x="495" y="80" width="100" height="86" rx="8" fill="#ffffff" stroke="#eb6834" stroke-width="2"/>
+    <rect x="495" y="80" width="100" height="20" rx="8" fill="#eb6834"/><text x="545" y="94">🔎 researcher</text>
+    <rect x="625" y="80" width="100" height="86" rx="8" fill="#ffffff" stroke="#eb6834" stroke-width="2"/>
+    <rect x="625" y="80" width="100" height="20" rx="8" fill="#eb6834"/><text x="675" y="94">🔎 researcher</text>
+  </g>
+  <g transform="translate(378,110)"><use href="#page"/><use href="#page" y="15"/><use href="#page" y="30"/><use href="#page" y="45"/></g>
+  <g transform="translate(508,110)"><use href="#page"/><use href="#page" y="15"/><use href="#page" y="30"/><use href="#page" y="45"/></g>
+  <g transform="translate(638,110)"><use href="#page"/><use href="#page" y="15"/><use href="#page" y="30"/><use href="#page" y="45"/></g>
+
+  <line x1="415" y1="168" x2="510" y2="208" stroke="#52514e" stroke-width="2" marker-end="url(#b)"/>
+  <line x1="545" y1="168" x2="545" y2="206" stroke="#52514e" stroke-width="2" marker-end="url(#b)"/>
+  <line x1="675" y1="168" x2="580" y2="208" stroke="#52514e" stroke-width="2" marker-end="url(#b)"/>
+  <text x="640" y="196" font-size="11.5" font-style="italic" fill="#52514e">short notes only</text>
+
+  <rect x="475" y="210" width="140" height="70" rx="8" fill="#ffffff" stroke="#2a78d6" stroke-width="2"/>
+  <rect x="475" y="210" width="140" height="20" rx="8" fill="#2a78d6"/>
+  <text x="545" y="224" text-anchor="middle" font-size="11" font-weight="700" fill="#ffffff">🧭 lead</text>
+  <g transform="translate(493,240)"><use href="#note"/><use href="#note" x="56"/><use href="#note" y="12"/><use href="#note" x="56" y="12"/><use href="#note" y="24"/></g>
+  <text x="545" y="304" text-anchor="middle" font-size="12.5" fill="#52514e">each reads only its own pages, at the same time</text>
+  <text x="545" y="322" text-anchor="middle" font-size="12.5" fill="#52514e">→ the lead sees the gist, never the pile</text>
+</svg>
