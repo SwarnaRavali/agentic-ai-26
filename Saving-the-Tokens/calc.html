@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Image token calculator - Saving the Tokens</title>
+<style>
+ body{font:16px/1.45 system-ui,-apple-system,Segoe UI,Arial,sans-serif;max-width:760px;margin:24px auto;padding:0 16px;color:#1a1a1a}
+ h1{font-size:22px;margin:0 0 4px} p.sub{margin:0 0 16px;color:#555}
+ label{font-weight:600;margin-right:6px} input{font:inherit;width:90px;padding:6px;border:1px solid #999;border-radius:6px}
+ button{font:inherit;padding:6px 12px;border:1px solid #1f6feb;background:#fff;color:#1f6feb;border-radius:6px;cursor:pointer;margin:4px 4px 4px 0}
+ table{border-collapse:collapse;width:100%;margin-top:14px} th,td{padding:7px 8px;text-align:left;border-bottom:1px solid #ddd}
+ td.n{text-align:right;font-variant-numeric:tabular-nums;font-weight:700} th.n{text-align:right}
+ tr.sec td{background:#f1f3f6;font-weight:700;color:#444;border-bottom:0} .bar{height:8px;background:#1f6feb;border-radius:4px}
+ .note{color:#555;font-size:14px;margin-top:14px}
+</style></head><body>
+<h1>What does one screenshot cost?</h1>
+<p class="sub">Works offline. Same arithmetic as <code>ex1_image.py</code>. Type your screen size.</p>
+<div><label for="w">Width</label><input id="w" type="number" value="1920" min="1">
+<label for="h" style="margin-left:12px">Height</label><input id="h" type="number" value="1080" min="1"></div>
+<div style="margin-top:8px">
+<button data-s="1280x800">1280x800</button><button data-s="1440x900">1440x900</button>
+<button data-s="1920x1080">1920x1080</button><button data-s="2560x1600">2560x1600</button>
+<button data-s="3840x2160">3840x2160 (4K)</button></div>
+<table id="t"></table>
+<p class="note">Modelled strategies are teaching presets. Real-product rows follow the vendors' published rules (checked 2026-10-29); vendors change them, so re-check before quoting.</p>
+<script>
+function rte(x){var f=Math.floor(x),d=x-f;if(d!==0.5)return Math.round(x);return f%2===0?f:f+1}
+function fixedGrid(p){var side=Math.floor(p.image_px/(p.patch_px*p.merge));return side*side}
+function closestGrid(w,h,tile,maxT,minT){
+  var cand=[];for(var t=minT;t<=maxT;t++)for(var c=1;c<=t;c++)for(var r=1;r<=t;r++){var n=c*r;if(n>=minT&&n<=maxT&&!cand.some(function(g){return g[0]===c&&g[1]===r}))cand.push([c,r])}
+  cand.sort(function(a,b){var d=a[0]*a[1]-b[0]*b[1];if(d)return d;return a[0]-b[0]||a[1]-b[1]});
+  var target=w/h,best=[1,1],gap0=Infinity;
+  cand.forEach(function(g){var gap=Math.abs(target-g[0]/g[1]);
+    if(gap<gap0){best=g;gap0=gap}else if(gap===gap0){if(w*h>0.5*tile*tile*g[0]*g[1])best=g}});
+  return best}
+function anyres(w,h,p){var g=closestGrid(w,h,p.tile_px,p.max_tiles,p.min_tiles||1),tiles=g[0]*g[1];
+  if(p.use_thumbnail&&tiles!==1)tiles++;var side=Math.floor(Math.floor(p.tile_px/p.patch_px)*p.downsample);return tiles*side*side}
+function native(w,h,p){var f=p.patch_px*p.merge,nw=Math.max(f,rte(w/f)*f),nh=Math.max(f,rte(h/f)*f),s;
+  if(nw*nh>p.max_pixels){s=Math.sqrt(w*h/p.max_pixels);nw=Math.max(f,Math.floor(w/s/f)*f);nh=Math.max(f,Math.floor(h/s/f)*f)}
+  else if(nw*nh<p.min_pixels){s=Math.sqrt(p.min_pixels/(w*h));nw=Math.ceil(w*s/f)*f;nh=Math.ceil(h*s/f)*f}
+  return (nw/f)*(nh/f)}
+function claudePatch(w,h,p){var P=p.patch_px;
+  function patches(a,b){return Math.ceil(a/P)*Math.ceil(b/P)}
+  function fits(a,b){return Math.ceil(a/P)*P<=p.max_edge&&Math.ceil(b/P)*P<=p.max_edge&&patches(a,b)<=p.max_tokens}
+  function rs(a,b){if(fits(a,b))return[a,b];if(b>a){var r=rs(b,a);return[r[1],r[0]]}
+    var asp=a/b,lo=1,hi=a;while(lo+1<hi){var mid=Math.floor((lo+hi)/2);if(fits(mid,Math.max(rte(mid/asp),1)))lo=mid;else hi=mid}
+    return[lo,Math.max(rte(lo/asp),1)]}
+  var r=rs(w,h);return patches(r[0],r[1])}
+function openaiTile(w,h,p){var sc=Math.min(1,p.fit_px/Math.max(w,h));w*=sc;h*=sc;
+  if(Math.min(w,h)>p.short_side_px){sc=p.short_side_px/Math.min(w,h);w*=sc;h*=sc}
+  w=Math.floor(w);h=Math.floor(h);return p.base_tokens+p.tile_tokens*Math.ceil(w/p.tile_px)*Math.ceil(h/p.tile_px)}
+var MODELLED=[
+ ["Squash it to one small square",function(w,h){return fixedGrid({image_px:336,patch_px:14,merge:1})}],
+ ["Cut it into tiles (up to 12)",function(w,h){return anyres(w,h,{patch_px:14,tile_px:448,max_tiles:12,min_tiles:1,downsample:0.5,use_thumbnail:true})}],
+ ["Cut it into tiles (up to 6)",function(w,h){return anyres(w,h,{patch_px:14,tile_px:448,max_tiles:6,min_tiles:1,downsample:0.5,use_thumbnail:true})}],
+ ["Shrink to a 1,280-token budget",function(w,h){return native(w,h,{patch_px:14,merge:2,min_pixels:3136,max_pixels:28*28*1280})}],
+ ["Shrink to a 256-token budget",function(w,h){return native(w,h,{patch_px:14,merge:2,min_pixels:3136,max_pixels:28*28*256})}]];
+var PUBLISHED=[
+ ["Claude, standard tier",function(w,h){return claudePatch(w,h,{patch_px:28,max_edge:1568,max_tokens:1568})}],
+ ["Claude, high-resolution tier",function(w,h){return claudePatch(w,h,{patch_px:28,max_edge:2576,max_tokens:4784})}],
+ ["OpenAI GPT-4o/4.1, high detail",function(w,h){return openaiTile(w,h,{base_tokens:85,tile_tokens:170,tile_px:512,fit_px:2048,short_side_px:768})}]];
+function render(){
+  var w=parseInt(document.getElementById('w').value,10),h=parseInt(document.getElementById('h').value,10);
+  var t=document.getElementById('t');if(!(w>0&&h>0)){t.innerHTML='';return}
+  var rows=[["MODELLED STRATEGIES",MODELLED],["REAL PRODUCTS (published rules)",PUBLISHED]],all=[],html='<tr><th>Strategy</th><th class="n">Tokens</th><th style="width:34%"></th></tr>';
+  rows.forEach(function(g){g[1].forEach(function(r){all.push(r[1](w,h))})});var mx=Math.max.apply(null,all),i=0;
+  rows.forEach(function(g){html+='<tr class="sec"><td colspan="3">'+g[0]+'</td></tr>';
+    g[1].forEach(function(r){var v=all[i++];html+='<tr><td>'+r[0]+'</td><td class="n">'+v.toLocaleString('en-US')+'</td><td><div class="bar" style="width:'+Math.max(2,100*v/mx)+'%"></div></td></tr>'})});
+  t.innerHTML=html}
+document.getElementById('w').oninput=document.getElementById('h').oninput=render;
+Array.prototype.forEach.call(document.querySelectorAll('button'),function(b){b.onclick=function(){var s=b.dataset.s.split('x');document.getElementById('w').value=s[0];document.getElementById('h').value=s[1];render()}});
+render();
+if(typeof module!=='undefined')module.exports={MODELLED:MODELLED,PUBLISHED:PUBLISHED};
+</script></body></html>
