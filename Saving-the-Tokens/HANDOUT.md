@@ -3,6 +3,8 @@
 IEEE AgenticAI Summit 2026. The scripts you ran are yours. Point them at your
 own agent and run them again.
 
+[Open the session in Google Colab, nothing to install](https://colab.research.google.com/github/ieee-ai/agentic-ai-26/blob/main/Saving-the-Tokens/Saving_the_Tokens_Colab.ipynb)
+
 ## The whole talk in one line
 
 **Your bill = how big each item is × how many times you send it again.**
@@ -132,6 +134,7 @@ quote.
 | `ex2_audio.py` | prices speech by duration |
 | `ex3_budget.py` | prices a whole session; `--agent screen\|chat\|both` |
 | `bill_report.py` | reads YOUR per-call token log and says what dominates |
+| `Saving_the_Tokens_Colab.ipynb` | the whole session as a Colab notebook, nothing to install |
 | `calc.html` | offline image-token calculator, no Python needed |
 | `models.py` | every encoder constant, with provenance. **Edit this one.** |
 | `tokenbill.py` | the arithmetic. Standard library only. |

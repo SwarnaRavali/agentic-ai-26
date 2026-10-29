@@ -3,6 +3,11 @@
 Hands-on material for the IEEE AgenticAI Summit 2026 session, Bangalore.
 Speaker: Shyamji Tiwari, Applied Scientist, Amazon. Views are my own.
 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ieee-ai/agentic-ai-26/blob/main/Saving-the-Tokens/Saving_the_Tokens_Colab.ipynb)
+
+**No Python, no laptop setup? Click the badge.** The whole session runs in your
+browser on Google Colab (a Google account is enough). Nothing to install.
+
 > **Your bill = how big each item is × how many times you send it again.**
 > Find the item that dominates your bill, then fix that one.
 
@@ -19,7 +24,8 @@ python3 check_setup.py          # expect: PASS. You are ready.
 ```
 
 On Windows, if `python3` is not found, use `py check_setup.py`. No Python at
-all? Open `calc.html` in a browser for the image-cost part.
+all? Use the Colab badge above, or open `calc.html` in a browser for the
+image-cost part.
 
 ## Exercises
 
@@ -53,6 +59,7 @@ growing conversation dominates.
 | `ex2_audio.py` | prices speech by duration |
 | `ex3_budget.py` | prices a whole session; `--agent screen\|chat\|both` |
 | `bill_report.py` | reads your per-call token log |
+| `Saving_the_Tokens_Colab.ipynb` | the whole session as a Colab notebook, nothing to install |
 | `calc.html` | offline image-token calculator |
 | `models.py` | every encoder constant, with provenance. **Edit this one.** |
 | `tokenbill.py` | the arithmetic (standard library only) |
