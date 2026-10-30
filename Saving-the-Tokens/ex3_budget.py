@@ -12,6 +12,9 @@ does by default.
     python3 ex3_budget.py                 the screen agent
     python3 ex3_budget.py --agent chat    the chat agent
     python3 ex3_budget.py --agent both    both rankings side by side
+    python3 ex3_budget.py --turns 10 --prompt 4000 --cache 0.9
+                                          change the assumptions and re-rank
+                                          (the flags apply to every agent shown)
 
 The script prints the baseline session, then changes exactly one thing at a
 time and ranks the savings. Do not guess the ranking. Run it.
@@ -37,7 +40,7 @@ if HERE not in sys.path:
 import models
 import tokenbill
 
-CONTEXT_WINDOW = 128000
+CONTEXT_WINDOW = 128000     # a common 128k-class window; some models offer 200k or more
 
 BASELINE = {
     "label": "baseline",
@@ -48,7 +51,7 @@ BASELINE = {
     "screenshot_every_n_turns": 1,     # 1 means a screenshot every single turn
     "screen_size": (1920, 1080),       # a common laptop or monitor
     "image_preset": "native-1280",
-    "audio_preset": "pooled-25",
+    "audio_preset": "pooled-32",
     "keep_last_k_turns": None,         # None means keep the whole history
     "drop_old_images": False,          # keep only the most recent screenshot
     "prefix_cache_discount": 0.0,      # 0.9 means cached tokens cost 10%
@@ -183,35 +186,41 @@ def _retain(history, current_turn, config):
 LEVERS = [
     ("Send a transcript, not the audio",
      {"transcribe_audio": True},
-     "needs speech recognition; loses tone, emotion and overlap"),
+     "needs speech recognition, whose cost, delay and errors are not priced "
+     "here; loses tone and overlap"),
     ("Drop stale screenshots, keep the newest",
      {"drop_old_images": True},
-     "the agent can no longer refer back to what it saw earlier"),
+     "the agent cannot look back; 2 to 3 images are safer for an agent that "
+     "acts, and dropping one every turn breaks a cache (vendors advise batches)"),
     ("Send the screen's text, not pixels",
      {"screen_as_text": True},
-     "assumes ~300 tokens of screen text; a big UI tree can cost MORE than the image"),
+     "assumes ~300 tokens of screen text: it saves nothing at 1,222 and costs "
+     "more above that; useless for canvases and charts"),
     ("Shrink the image budget 1,280 to 256",
      {"image_preset": "native-256"},
-     "the screen becomes a 588x336 view; small text is gone"),
+     "the screen becomes a 588x336 view: small text and click targets are "
+     "unreadable, so the saving is bought with capability"),
     ("Screenshot every 4th turn",
      {"screenshot_every_n_turns": 4},
-     "the agent is three turns stale when it acts"),
+     "the agent acts on a screen up to three turns old"),
     ("Keep only the last 5 turns",
      {"keep_last_k_turns": 5},
-     "the agent forgets what it was asked to do"),
+     "the agent forgets the task unless you pin it; summarising instead costs "
+     "a call not priced here; sliding every turn breaks a cache"),
     ("Halve the speech token rate",
      {"audio_rate_scale": 0.5},
-     "coarser audio, so worse recognition of unclear speech"),
+     "not a knob an API gives you: it is a property of the audio encoder"),
     ("Halve every agent reply",
      {"agent_reply_scale": 0.5},
-     "terser answers, capped by how short a useful reply can be"),
+     "terser answers; output tokens, usually priced higher, are not counted here"),
     ("Cut the system prompt by 60%",
      {"system_prompt_scale": 0.4},
      "instructions, examples and guardrails: re-test before you ship it"),
     ("Turn on prefix caching (90% off)",
      {"prefix_cache_discount": 0.9},
-     "NOT A DESIGN CHANGE: a billing arrangement, and it does nothing "
-     "for the context window"),
+     "PRICE LEVER: each repeat costs less (90% off assumed; real discounts, "
+     "write fees and expiry differ), but the request is not smaller, so it does "
+     "nothing for the context window"),
 ]
 
 # The levers whose win depends on the baseline you assume. Printed so the
@@ -222,11 +231,18 @@ SENSITIVITY = [
      "Screen agent, if your prompt and tool schemas are 4,000 tokens",
      "Cut the system prompt by 60%", True),
     ("screen", {"prefix_cache_discount": 0.9},
-     "Screen agent, if caching is already on", None, True),
+     "Screen agent, if caching is already on",
+     "Drop stale screenshots, keep the newest", True),
+    ("screen", {"prefix_cache_discount": 0.9},
+     "Screen agent, caching on, sliding the window every turn",
+     "Keep only the last 5 turns", True),
     ("chat", {"prefix_cache_discount": 0.9, "output_price_multiple": 5.0},
      "Chat agent, caching on and output priced at 5x input", "Halve every agent reply", True),
+    ("screen", {"screen_text_tokens": 1000},
+     "Screen agent, if the screen's text is 1,000 tokens, not 300",
+     "Send the screen's text, not pixels", True),
     ("screen", {"audio_preset": "window-30s"},
-     "Screen agent, if your audio model pads every clip to 30 s", None, True),
+     "Screen agent, if your audio model pads every clip to 30 s", None, False),
     ("screen", {"turns": 10}, "Screen agent, if sessions are 10 turns, not 20", None, False),
 ]
 
@@ -244,6 +260,24 @@ def variant(base, changes, label):
     config.update(changes)
     config["label"] = label
     return config
+
+
+def overflow_turn(config, limit=400):
+    """First turn whose prompt reaches the context window, or None within `limit` turns."""
+    _total, rows, _final = simulate(variant(config, {"turns": limit}, "window"))
+    for row in rows:
+        if row["prompt"] >= CONTEXT_WINDOW:
+            return row["turn"]
+    return None
+
+
+OVERRIDES = {}      # set from --turns / --prompt / --cache
+
+
+def agent_config(name):
+    cfg = copy.deepcopy(AGENTS[name][0])
+    cfg.update(OVERRIDES)
+    return cfg
 
 
 def rank_levers(base):
@@ -264,7 +298,7 @@ def rank_levers(base):
 def design_levers(scored):
     """Design changes that apply to this agent (caching is a billing arrangement)."""
     return [row for row in scored
-            if "NOT A DESIGN CHANGE" not in row[4] and abs(row[0]) > 0.0005]
+            if "PRICE LEVER" not in row[4] and abs(row[0]) > 0.0005]
 
 
 def sensitivity_rows():
@@ -277,7 +311,7 @@ def sensitivity_rows():
         base = simulate(cfg)[0]
         out = {}
         for label, changes, costs in LEVERS:
-            if "NOT A DESIGN CHANGE" in costs:
+            if "PRICE LEVER" in costs:
                 continue
             out[label] = 100.0 * (1.0 - simulate(variant(cfg, changes, label))[0] / float(base))
         return out
@@ -337,7 +371,8 @@ def bill_breakdown(config):
 
 
 def run_single(name):
-    config, blurb = AGENTS[name]
+    blurb = AGENTS[name][1]
+    config = agent_config(name)
     audio_cost, image_cost = turn_items(config)
     total, rows, final_prompt = simulate(config)
     has_screen = config["screenshot_every_n_turns"] is not None
@@ -365,9 +400,14 @@ def run_single(name):
                      tokenbill.human(row["billed"]), row["images"]))
     print("-" * 78)
     print("Total billed prompt tokens for the session: %s" % tokenbill.human(total))
-    print("Final turn's prompt: %s tokens against a %s window: %s"
-          % (tokenbill.human(final_prompt), tokenbill.human(CONTEXT_WINDOW),
-             "fits" if final_prompt < CONTEXT_WINDOW else "OVERFLOWS"))
+    hit = overflow_turn(config)
+    print("Final turn's prompt: %s tokens, %.0f%% of a %s-token window."
+          % (tokenbill.human(final_prompt), 100.0 * final_prompt / CONTEXT_WINDOW,
+             tokenbill.human(CONTEXT_WINDOW)))
+    print(textwrap.fill(
+        ("The window fills at turn %d if the session keeps going. Pruning "
+         "delays that; caching does not." % hit) if hit else
+        "The window is not reached within 400 turns.", 78))
     print()
 
     parts, _total, ok = bill_breakdown(config)
@@ -382,8 +422,8 @@ def run_single(name):
         per_session = total / 1e6 * config["price_per_million"]
         print("At $%.2f per million tokens (an assumption): $%.2f per session,"
               % (config["price_per_million"], per_session))
-        print("or $%s a month at %s sessions a day."
-              % (tokenbill.human(per_session * config["sessions_per_day"] * 30),
+        print("or about $%s a month at %s sessions a day, 30 days."
+              % (tokenbill.human(round(per_session * config["sessions_per_day"] * 30)),
                  tokenbill.human(config["sessions_per_day"])))
         print()
 
@@ -391,8 +431,10 @@ def run_single(name):
     print("ONE FIX AT A TIME, ranked by what it saves on THIS agent")
     print("-" * 78)
     for saving, label, changed_total, _, costs in scored:
-        print("%6.1f%%  %-40s %9s tokens"
-              % (saving * 100.0, label, tokenbill.human(changed_total)))
+        already = ("(already on)" if "PRICE LEVER" in costs and config["prefix_cache_discount"] > 0
+                   else "")
+        print("%6.1f%%  %-40s %9s tokens %s"
+              % (saving * 100.0, label, tokenbill.human(changed_total), already))
         print(textwrap.fill("costs you: " + costs, 78, initial_indent=" " * 9,
                             subsequent_indent=" " * 9))
     print("-" * 78)
@@ -400,16 +442,26 @@ def run_single(name):
     best, worst = design[0], design[-1]
     print("Best design fix:  %.1f%%  %s" % (best[0] * 100.0, best[1]))
     print("Worst design fix: %.1f%%  %s" % (worst[0] * 100.0, worst[1]))
-    cached_cfg = variant(config, {"prefix_cache_discount": 0.9}, "cached")
-    _t, cached_scored = rank_levers(cached_cfg)
-    again = [row for row in cached_scored if row[1] == best[1]][0]
-    print(textwrap.fill(
-        "Caching is listed too, but it is a billing arrangement, not a design "
-        "change. With caching already on, '%s' saves %.1f%% instead of %.1f%%."
-        % (best[1], again[0] * 100.0, best[0] * 100.0), 78))
+    if config["prefix_cache_discount"] > 0:
+        print(textwrap.fill(
+            "Caching is already on in this run, so its row shows no saving. It is "
+            "a price lever: it makes each repeat cheaper, not the request smaller.", 78))
+    else:
+        cached_cfg = variant(config, {"prefix_cache_discount": 0.9}, "cached")
+        _t, cached_scored = rank_levers(cached_cfg)
+        again = [row for row in cached_scored if row[1] == best[1]][0]
+        print(textwrap.fill(
+            "Caching is listed too, but it is a price lever: it makes each repeat "
+            "cheaper, not the request smaller. With caching already on, '%s' saves "
+            "%.1f%% instead of %.1f%%." % (best[1], again[0] * 100.0, best[0] * 100.0), 78))
     print()
     mine = [r for r in sensitivity_rows() if r["agent"] == name]
-    if mine:
+    if OVERRIDES:
+        print()
+        print(textwrap.fill("Your flags change the assumptions above (%s). The 'ranking is "
+                            "not a law' table is for the stock settings: run without flags "
+                            "to see it." % ", ".join("%s=%s" % kv for kv in sorted(OVERRIDES.items())), 78))
+    elif mine:
         print()
         print("THE RANKING IS NOT A LAW: change one assumption of this agent")
         print("-" * 78)
@@ -429,7 +481,7 @@ def run_single(name):
 def run_both():
     ranked = {}
     for name in ("screen", "chat"):
-        total, scored = rank_levers(AGENTS[name][0])
+        total, scored = rank_levers(agent_config(name))
         ranked[name] = (total, scored,
                         dict((row[1], (i + 1, row[0])) for i, row in enumerate(scored)))
     print()
@@ -437,7 +489,7 @@ def run_both():
     print("-" * 78)
     for name in ("screen", "chat"):
         print("%-7s %s" % (name, textwrap.fill(
-            "%s. Session bill %s tokens." % (describe(AGENTS[name][0]),
+            "%s. Session bill %s tokens." % (describe(agent_config(name)),
                                             tokenbill.human(ranked[name][0])),
             70, subsequent_indent=" " * 8).lstrip()))
     print()
@@ -476,11 +528,29 @@ def main():
     if "-h" in args or "--help" in args:
         print(__doc__)
         return
+    flags = {"--agent": None, "--turns": int, "--prompt": int, "--cache": float}
+    keys = {"--turns": "turns", "--prompt": "system_prompt_tokens",
+            "--cache": "prefix_cache_discount"}
+    ranges = {"--turns": (2, 400), "--prompt": (0, 1000000), "--cache": (0.0, 0.99)}
     for i, arg in enumerate(args):
-        if arg == "--agent" and i + 1 < len(args):
-            which = args[i + 1]
-        elif arg.startswith("--agent="):
-            which = arg.split("=", 1)[1]
+        name, _eq, value = arg.partition("=")
+        if name in flags:
+            if not _eq:
+                value = args[i + 1] if i + 1 < len(args) else ""
+            try:
+                if name == "--agent":
+                    which = value
+                else:
+                    number = flags[name](value)
+                    low, high = ranges[name]
+                    if not (low <= number <= high):          # also rejects nan
+                        raise ValueError
+                    OVERRIDES[keys[name]] = number
+            except ValueError:
+                if name == "--agent":
+                    sys.exit("Unknown agent %r." % value)
+                low, high = ranges[name]
+                sys.exit("%s needs a number from %s to %s, not %r." % (name, low, high, value))
     if which == "both":
         run_both()
     elif which in AGENTS:

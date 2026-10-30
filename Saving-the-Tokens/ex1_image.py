@@ -6,6 +6,7 @@ Run it on the sample, then run it on a screenshot of your own screen.
     python3 ex1_image.py samples/screen_4k.png
     python3 ex1_image.py ~/Desktop/my_screenshot.png
     python3 ex1_image.py --size 1920x1080
+    python3 ex1_image.py --size 1920x1080 --brief      (the two tables only)
 
 Three questions to answer before you move on:
     1. Which preset is cheapest for your image, and by what factor?
@@ -32,8 +33,12 @@ CHARS_PER_PAGE = 3000
 DEFAULT_IMAGE = os.path.join(HERE, "samples", "screen_4k.png")
 
 
+BRIEF = False                         # --brief: the two tables only
+
+
 def parse_args(argv):
     """Accept either an image path or --size WxH (equals sign or space)."""
+    global BRIEF
     path = None
     size = None
     args = list(argv[1:])
@@ -42,7 +47,9 @@ def parse_args(argv):
         if arg in ("-h", "--help"):
             print(__doc__)
             sys.exit(0)
-        if arg == "--size":
+        if arg == "--brief":
+            BRIEF = True
+        elif arg == "--size":
             text = args.pop(0) if args else ""
             # Unquoted "1920 x 1080" arrives as three arguments: put it back
             # together, but never swallow a following file name or flag.
@@ -126,6 +133,11 @@ def main():
     pages = dearest[1]["tokens"] / float(tokenbill.text_tokens(CHARS_PER_PAGE))
     print("At the dearest modelled strategy this image costs about %.1f pages "
           "of prose." % pages)
+
+    if BRIEF:
+        print()
+        print("Short version. Leave off --brief to also see the tile staircase.")
+        return
 
     print()
     print("THE TILE CLIFF: tiled-448 near your image's aspect ratio")

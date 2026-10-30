@@ -3,13 +3,14 @@
     python3 ex2_audio.py
     python3 ex2_audio.py samples/utterance_8s.wav
     python3 ex2_audio.py --seconds 600
+    python3 ex2_audio.py --seconds 31 --brief      (the first table only)
 
 Three questions to answer before you move on:
     1. Under window-30s, what does a 2 second "yes" cost? What does a 29
        second answer cost? Explain the result to the person next to you.
     2. Your voice agent holds a 10 minute call and both sides are transcribed
        into context. Which preset keeps you inside a 128k window?
-    3. Your system prompt is 400 tokens. At pooled-25, how many seconds of
+    3. Your system prompt is 400 tokens. At pooled-32, how many seconds of
        speech does it take to outweigh the entire prompt?
 """
 
@@ -29,7 +30,11 @@ CONTEXT_WINDOW = 128000
 DEFAULT_AUDIO = os.path.join(HERE, "samples", "utterance_8s.wav")
 
 
+BRIEF = False                         # --brief: the first table only
+
+
 def parse_args(argv):
+    global BRIEF
     path = None
     seconds = None
     args = list(argv[1:])
@@ -38,7 +43,9 @@ def parse_args(argv):
         if arg in ("-h", "--help"):
             print(__doc__)
             sys.exit(0)
-        if arg == "--seconds":
+        if arg == "--brief":
+            BRIEF = True
+        elif arg == "--seconds":
             seconds = _parse_seconds(args.pop(0) if args else "")
         elif arg.startswith("--seconds="):
             seconds = _parse_seconds(arg.split("=", 1)[1])
@@ -101,9 +108,16 @@ def main():
     print("-" * 78)
     print("Your 400 token system prompt, for comparison: %s tokens."
           % tokenbill.human(TEXT_PROMPT_TOKENS))
-    print("The words as text are %.0fx cheaper than the padded clip."
+    print("The words as text are %.0fx fewer tokens than speech at 32 a second,"
+          % (results["pooled-32"]["tokens"] / float(words)))
+    print("and up to %.0fx fewer than a padded window (the worst case)."
           % (padded / float(words)))
     print()
+
+    if BRIEF:
+        print("Short version. Leave off --brief to also see the duration sweep, the")
+        print("ten minute call and the break-even.")
+        return
 
     print("DURATION SWEEP: tokens as the clip gets longer")
     print("-" * 78)

@@ -37,19 +37,29 @@ sent anywhere.
 """
 
 import csv
+import math
 import os
 import sys
 import textwrap
 
 
 def num(row, key, line):
-    value = (row.get(key) or "").strip()
+    if key not in row:                      # optional column not in the file
+        return 0.0
+    raw = row[key]
+    if raw is None:                         # a row shorter than the header
+        sys.exit("Line %d: the row is missing a value for %s." % (line, key))
+    value = raw.strip()
     if value == "":
         return 0.0
     try:
-        return float(value)
+        number = float(value)
     except ValueError:
         sys.exit("Line %d: %r in column %s is not a number." % (line, value, key))
+    if not math.isfinite(number) or number < 0:
+        sys.exit("Line %d: %r in column %s must be a number of tokens, zero or more."
+                 % (line, value, key))
+    return number
 
 
 def load(path):
@@ -88,6 +98,8 @@ def load(path):
                 session += 1
             previous_turn = turn
             sid = session
+        if cached > prompt:
+            sys.exit("Line %d: more cached tokens than prompt tokens." % i)
         calls.append({"session": sid, "prompt": prompt, "cached": cached, "out": out,
                       "new": (num(row, "new_tokens", i)
                               if (row.get("new_tokens") or "").strip() != "" else None)})
@@ -141,8 +153,10 @@ def main():
         i = args.index("--cache-read-multiple")
         try:
             mult = float(args[i + 1])
+            if not (0.0 <= mult <= 1.0):                    # also rejects nan
+                raise ValueError
         except (IndexError, ValueError):
-            sys.exit("--cache-read-multiple needs a number, for example 0.1")
+            sys.exit("--cache-read-multiple needs a number from 0 to 1, for example 0.1")
         del args[i:i + 2]
     if len(args) != 1:
         sys.exit("usage: python3 bill_report.py usage.csv [--cache-read-multiple 0.1]")
@@ -154,6 +168,12 @@ def main():
     r = analyse(sessions)
     if not r["sessions"]:
         sys.exit("Need at least one session with two or more calls.")
+    if r["total"] <= 0:
+        sys.exit("Every prompt count is zero; check the column you logged.")
+    for calls_in in sessions:
+        for c in calls_in:
+            if c["new"] is not None and c["new"] > c["prompt"]:
+                sys.exit("A new_tokens value is larger than that call's prompt.")
     total_in = sum(c["prompt"] for c in calls)
     cached = sum(c["cached"] for c in calls)
     out = sum(c["out"] for c in calls)
@@ -180,7 +200,7 @@ def main():
     print("output tokens                 %10s   (priced separately, usually higher)" % f(out))
     print("-" * 78)
     print("first call, on average        %10s tokens" % f(r["first"]))
-    print("added per call, on average    %10s tokens" % f(r["growth"]))
+    print("net growth per call, average  %10s tokens" % f(r["growth"]))
     print("last call, on average         %10s tokens" % f(r["last"]))
     print()
 

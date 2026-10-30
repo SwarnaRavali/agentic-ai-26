@@ -8,7 +8,7 @@ Speaker: Shyamji Tiwari, Applied Scientist, Amazon. Views are my own.
 **No Python, no laptop setup? Click the badge.** The whole session runs in your
 browser on Google Colab (a Google account is enough). Nothing to install.
 
-> **Your bill = how big each item is × how many times you send it again.**
+> **Your bill = size × how many times you send it × what each send costs.**
 > Find the item that dominates your bill, then fix that one.
 
 Small Python scripts that price what images, speech and a whole agent
@@ -69,7 +69,7 @@ growing conversation dominates.
 ## Read this before quoting a number
 
 The session simulation uses illustrative settings. It is not a measurement of
-any shipped model, and 8 of the 10 modelled presets are marked "check" in
+any shipped model, and 7 of the 10 modelled presets are marked "check" in
 `models.py`. The three "real products" rows (Claude standard and
 high-resolution, OpenAI tile-based) follow the vendors' published rules as
 checked on 2026-10-29, which vendors change between model generations, so

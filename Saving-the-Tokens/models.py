@@ -157,15 +157,16 @@ AUDIO_PRESETS = {
                   "halved by a stride-2 convolution to 1500 positions.",
         "status": "documented",
     },
-    "pooled-25": {
-        "name": "pooled-25",
-        "plain": "25 tokens per second of speech",
-        "label": "Pooled speech tokens, 25 per second (audio LM style)",
+    "pooled-32": {
+        "name": "pooled-32",
+        "plain": "32 tokens per second of speech",
+        "label": "Speech billed per second of audio, 32 tokens (Gemini)",
         "kind": "pooled",
-        "params": {"tokens_per_s": 25.0},
-        "source": "A pooling layer on top of a 50 frames per second encoder. "
-                  "The exact rate differs per audio LM. CONFIRM FOR YOUR MODEL.",
-        "status": "check",
+        "params": {"tokens_per_s": 32.0},
+        "source": "Google's Gemini API docs: audio is counted at 32 tokens per "
+                  "second (1 minute = 1,920 tokens). Checked 2026-10-29. Other "
+                  "audio models differ (the session also uses 12.5).",
+        "status": "documented",
     },
     "pooled-12.5": {
         "name": "pooled-12.5",
